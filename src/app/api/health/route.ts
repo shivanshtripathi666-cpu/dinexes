@@ -22,7 +22,7 @@ export async function GET() {
   const body = {
     project: env.firebase.projectId,
     address: env.platformUrl,
-    webConfig: env.firebase.apiKey ? "ok" : "missing",
+    webConfig: env.firebase.apiKey || env.useEmulators ? "ok" : "missing",
     database,
     logins,
     photos,
