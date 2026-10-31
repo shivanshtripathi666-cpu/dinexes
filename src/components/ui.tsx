@@ -10,7 +10,7 @@ type Variant = "primary" | "dark" | "outline" | "ghost" | "danger" | "ok";
 type Size = "sm" | "md" | "lg";
 
 const VARIANT: Record<Variant, string> = {
-  primary: "bg-amber text-ink hover:bg-[#c58d2c] border border-amber",
+  primary: "bg-amber text-ink hover:bg-[#c58d2c] border border-amber shadow-[0_1px_0_rgb(0_0_0/0.08)]",
   dark: "bg-navy text-ivory hover:bg-navy-2 border border-navy",
   outline: "bg-transparent text-ink border border-line hover:border-ink/40 hover:bg-white",
   ghost: "bg-transparent text-ink border border-transparent hover:bg-sand/60",
@@ -25,7 +25,7 @@ const SIZE: Record<Size, string> = {
 
 export function buttonClass(variant: Variant = "primary", size: Size = "md", extra = "") {
   return cx(
-    "inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:pointer-events-none select-none whitespace-nowrap",
+    "inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg font-semibold transition-[transform,background-color,border-color,color,box-shadow] duration-150 active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none select-none whitespace-nowrap",
     VARIANT[variant],
     SIZE[size],
     extra,

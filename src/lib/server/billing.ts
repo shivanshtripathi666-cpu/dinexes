@@ -1,6 +1,6 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { PLAN_PERIOD_DAYS, PLAN_PRICE_PAISE } from "@/lib/config";
+import { planById } from "@/lib/config";
 import { env, razorpayConfigured } from "./env";
 import { db } from "./firebaseAdmin";
 import { HttpError } from "./http";
@@ -13,17 +13,23 @@ function authHeader() {
   return "Basic " + Buffer.from(`${env.razorpay.keyId}:${env.razorpay.keySecret}`).toString("base64");
 }
 
-export async function createPlanOrder(rid: string, uid: string) {
+export async function createPlanOrder(rid: string, uid: string, planId: string) {
   if (!razorpayConfigured()) throw new HttpError(503, "Online payment is not connected yet.", "payments_off");
+  const plan = planById(planId);
+  if (!plan) throw new HttpError(400, "Please choose a plan.");
+  const amount = plan.priceInr * 100;
   const res = await fetch("https://api.razorpay.com/v1/orders", {
     method: "POST",
     headers: { Authorization: authHeader(), "Content-Type": "application/json" },
-    body: JSON.stringify({ amount: PLAN_PRICE_PAISE, currency: "INR", receipt: `dx_${rid.slice(0, 20)}_${Date.now()}`.slice(0, 40), notes: { rid } }),
+    body: JSON.stringify({ amount, currency: "INR", receipt: `dx_${rid.slice(0, 20)}_${Date.now()}`.slice(0, 40), notes: { rid, plan: plan.id } }),
   });
   if (!res.ok) throw new HttpError(502, "Could not start the payment. Please try again.");
   const o = (await res.json()) as { id: string; amount: number };
+  if (o.amount !== amount) throw new HttpError(502, "Could not start the payment. Please try again.");
   await db().doc(`restaurants/${rid}/payments/${o.id}`).set({
     amountPaise: o.amount,
+    plan: plan.id,
+    days: plan.days,
     status: "created",
     provider: "razorpay",
     providerOrderId: o.id,
@@ -43,7 +49,7 @@ export function validSignature(orderId: string, paymentId: string, signature: st
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-/** After a verified payment: one more period, starting when the current trial or paid period ends. */
+/** After a verified payment: the paid plan's days are added, starting when the current trial or paid period ends. */
 export async function confirmPlanPayment(rid: string, orderId: string, paymentId: string, signature: string) {
   if (!razorpayConfigured()) throw new HttpError(503, "Online payment is not connected yet.", "payments_off");
   if (!validSignature(orderId, paymentId, signature)) throw new HttpError(400, "Payment could not be verified.", "bad_signature");
@@ -57,7 +63,8 @@ export async function confirmPlanPayment(rid: string, orderId: string, paymentId
     if (p.get("status") === "paid") return { periodEnd: p.get("periodEnd") as number };
     const now = Date.now();
     const start = Math.max(now, (r.get("subscription.currentPeriodEnd") as number) || 0, (r.get("trialEndsAt") as number) || 0);
-    const end = start + PLAN_PERIOD_DAYS * 86400000;
+    const days = (p.get("days") as number) || 30;
+    const end = start + days * 86400000;
     tx.update(payRef, { status: "paid", providerPaymentId: paymentId, periodStart: start, periodEnd: end, paidAt: now });
     tx.update(restRef, { "subscription.status": "active", "subscription.currentPeriodEnd": end });
     return { periodEnd: end };

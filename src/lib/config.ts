@@ -8,6 +8,19 @@ export const APP_TAGLINE = "Scan. Order. Serve.";
 export const PLAN_PRICE_INR = 399;
 export const PLAN_PRICE_PAISE = PLAN_PRICE_INR * 100;
 export const PLAN_PERIOD_DAYS = 30;
+
+/** Subscription plans. Longer plans cost less per month. */
+export const PLANS = [
+  { id: "m1", label: "1 month", months: 1, days: 30, priceInr: 399, tag: "" },
+  { id: "m3", label: "3 months", months: 3, days: 90, priceInr: 899, tag: "Popular" },
+  { id: "m6", label: "6 months", months: 6, days: 180, priceInr: 1499, tag: "Best value" },
+] as const;
+export type PlanId = (typeof PLANS)[number]["id"];
+export const planById = (id: string) => PLANS.find((p) => p.id === id);
+export const planSaving = (p: (typeof PLANS)[number]) => p.months * PLAN_PRICE_INR - p.priceInr;
+
+/** Shown on the legal and contact pages. Set SUPPORT_EMAIL on the server to change it. */
+export const DEFAULT_SUPPORT_EMAIL = "shivanshtripathi666@gmail.com";
 export const TRIAL_DAYS = 7;
 export const MAX_STAFF = 4;
 export const MAX_SEATS = 300;

@@ -42,8 +42,17 @@ export function SiteFooter() {
           <Link href="/register" className="hover:text-ivory">
             Register your restaurant
           </Link>
-          <Link href="/login" className="hover:text-ivory">
+          <Link href="/login?as=staff" className="hover:text-ivory">
             Staff sign in
+          </Link>
+          <Link href="/privacy" className="hover:text-ivory">
+            Privacy
+          </Link>
+          <Link href="/terms" className="hover:text-ivory">
+            Terms
+          </Link>
+          <Link href="/refund" className="hover:text-ivory">
+            Refunds
           </Link>
         </div>
         <p className="text-xs">

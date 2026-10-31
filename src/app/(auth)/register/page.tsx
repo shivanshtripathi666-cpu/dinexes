@@ -3,6 +3,7 @@ import { createUserWithEmailAndPassword, sendEmailVerification, updateProfile } 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { PasswordHint, PasswordInput, passwordProblem } from "@/components/password-input";
 import { useSession } from "@/components/session";
 import { Alert, Button, Field, Input, Spinner } from "@/components/ui";
 import { api, errorText } from "@/lib/api";
@@ -27,8 +28,9 @@ export default function RegisterPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (!accountExists && form.password.length < 8) {
-      setError("Please use a password of at least 8 characters.");
+    const problem = accountExists ? "" : passwordProblem(form.password);
+    if (problem) {
+      setError(`Password: ${problem}`);
       return;
     }
     setBusy(true);
@@ -61,6 +63,7 @@ export default function RegisterPage() {
   return (
     <div>
       <h1 className="display text-3xl font-semibold">Register your restaurant</h1>
+      <p className="mt-1 text-sm font-medium text-amber-deep">For restaurant owners only. Staff are added by the owner after sign-up.</p>
       <p className="mt-2 text-muted">
         {TRIAL_DAYS} days free, then ₹{PLAN_PRICE_INR} a month. No card needed now.
       </p>
@@ -78,9 +81,10 @@ export default function RegisterPage() {
             <Field label="Email" htmlFor="email">
               <Input id="email" type="email" autoComplete="email" required value={form.email} onChange={set("email")} />
             </Field>
-            <Field label="Password" htmlFor="password" hint="At least 8 characters.">
-              <Input id="password" type="password" autoComplete="new-password" required minLength={8} value={form.password} onChange={set("password")} />
+            <Field label="Password" htmlFor="password">
+              <PasswordInput id="password" autoComplete="new-password" required minLength={8} value={form.password} onChange={set("password")} />
             </Field>
+            <PasswordHint value={form.password} />
           </>
         )}
         <Field label="Restaurant name" htmlFor="name">
@@ -98,11 +102,26 @@ export default function RegisterPage() {
         <Button type="submit" size="lg" className="w-full" loading={busy}>
           Create restaurant
         </Button>
+        <p className="text-center text-xs text-muted">
+          By registering you agree to the{" "}
+          <Link href="/terms" className="underline">
+            Terms
+          </Link>{" "}
+          and{" "}
+          <Link href="/privacy" className="underline">
+            Privacy policy
+          </Link>
+          .
+        </p>
       </form>
       <p className="mt-6 text-sm text-muted">
         Already registered?{" "}
         <Link href="/login" className="font-semibold text-ink underline underline-offset-4">
-          Sign in
+          Owner sign in
+        </Link>
+        {" · "}
+        <Link href="/login?as=staff" className="font-semibold text-ink underline underline-offset-4">
+          Staff sign in
         </Link>
       </p>
     </div>

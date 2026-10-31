@@ -36,6 +36,7 @@ export interface Member {
   name: string;
   email: string;
   role: Role;
+  duty: string;
   createdAt: number;
 }
 
@@ -55,6 +56,8 @@ export interface Dish {
   veg: boolean;
   available: boolean;
   sort: number;
+  ratingAvg: number;
+  ratingCount: number;
 }
 
 export interface Seat {
@@ -99,11 +102,12 @@ export interface PublicOrderStatus {
   seatToken: string;
   number: number;
   seatLabel: string;
-  items: { name: string; qty: number }[];
+  items: { name: string; qty: number; dishId?: string }[];
   totalPaise: number;
   status: OrderStatus;
   createdAt: number;
   updatedAt: number;
+  rated?: boolean;
 }
 
 export interface DayStats {
@@ -122,6 +126,7 @@ export interface Payment {
   provider: "razorpay";
   providerOrderId: string;
   providerPaymentId: string;
+  plan: string;
   periodStart: number | null;
   periodEnd: number | null;
   createdAt: number;

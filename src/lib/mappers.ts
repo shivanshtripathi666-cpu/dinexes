@@ -16,6 +16,8 @@ export const mapDish = (id: string, d: D): Dish => ({
   veg: !!a(d).veg,
   available: a(d).available !== false,
   sort: a(d).sort || 0,
+  ratingAvg: a(d).ratingCount ? Math.round(((a(d).ratingSum || 0) / a(d).ratingCount) * 10) / 10 : 0,
+  ratingCount: a(d).ratingCount || 0,
 });
 
 export const mapSeat = (id: string, d: D): Seat => ({
@@ -46,7 +48,7 @@ export const mapOrder = (id: string, d: D): Order => ({
   publicToken: a(d).publicToken || "",
 });
 
-export const mapMember = (id: string, d: D): Member => ({ uid: id, name: a(d).name || "", email: a(d).email || "", role: a(d).role, createdAt: a(d).createdAt || 0 });
+export const mapMember = (id: string, d: D): Member => ({ uid: id, name: a(d).name || "", email: a(d).email || "", role: a(d).role, duty: a(d).duty || "", createdAt: a(d).createdAt || 0 });
 
 export const mapDay = (id: string, d: D): DayStats => ({
   day: id,
@@ -64,6 +66,7 @@ export const mapPayment = (id: string, d: D): Payment => ({
   provider: "razorpay",
   providerOrderId: a(d).providerOrderId || id,
   providerPaymentId: a(d).providerPaymentId || "",
+  plan: a(d).plan || "m1",
   periodStart: a(d).periodStart || null,
   periodEnd: a(d).periodEnd || null,
   createdAt: a(d).createdAt || 0,

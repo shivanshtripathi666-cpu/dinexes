@@ -1,10 +1,12 @@
 import { requireMember } from "@/lib/server/auth";
 import { createPlanOrder } from "@/lib/server/billing";
-import { handle, ok } from "@/lib/server/http";
+import { handle, ok, readJson } from "@/lib/server/http";
+import { str } from "@/lib/server/validate";
 
 export const dynamic = "force-dynamic";
 
 export const POST = handle(async (req: Request) => {
   const m = await requireMember(req, "billing.manage");
-  return ok(await createPlanOrder(m.rid, m.uid), 201);
+  const b = await readJson(req);
+  return ok(await createPlanOrder(m.rid, m.uid, str(b.plan, "Plan", { max: 10 })), 201);
 });

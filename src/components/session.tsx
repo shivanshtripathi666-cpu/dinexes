@@ -1,7 +1,7 @@
 "use client";
 import { onAuthStateChanged, signOut as fbSignOut, type User } from "firebase/auth";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { api } from "@/lib/api";
+import { ApiError, api } from "@/lib/api";
 import { fb } from "@/lib/firebase/client";
 import type { MeResponse } from "@/lib/types";
 
@@ -41,6 +41,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       setError("");
       return m;
     } catch (e) {
+      if (e instanceof ApiError && e.status === 401) {
+        // The login was removed or its session revoked: sign out on this device too.
+        await fbSignOut(fb().auth).catch(() => undefined);
+        setMe(null);
+        return null;
+      }
       setError(e instanceof Error ? e.message : "Could not load your account.");
       return null;
     }

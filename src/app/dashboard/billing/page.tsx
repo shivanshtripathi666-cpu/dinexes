@@ -1,13 +1,14 @@
 "use client";
 import { orderBy } from "firebase/firestore";
-import { Check, CreditCard, Info } from "lucide-react";
+import { CreditCard, Info, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { useDash } from "@/components/dash-context";
 import { NoAccess } from "@/components/dash-shell";
 import { useSession } from "@/components/session";
 import { Alert, Badge, Button, Card, EmptyState, PageHeader, Spinner } from "@/components/ui";
 import { api, errorText } from "@/lib/api";
-import { MAX_STAFF, PLAN_PERIOD_DAYS, PLAN_PRICE_INR, TRIAL_DAYS } from "@/lib/config";
+import { PLANS, PLAN_PRICE_INR, TRIAL_DAYS, planById, type PlanId } from "@/lib/config";
+import { PlanCard } from "@/components/plans";
 import { cfg } from "@/lib/firebase/client";
 import { useLiveCollection } from "@/lib/firebase/hooks";
 import { mapPayment } from "@/lib/mappers";
@@ -45,6 +46,8 @@ function Billing() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
+  const [plan, setPlan] = useState<PlanId>("m3");
+  const chosen = planById(plan)!;
   const enabled = cfg().paymentsEnabled;
   const a = d.access;
 
@@ -53,7 +56,7 @@ function Billing() {
     setError("");
     setOk("");
     try {
-      const o = await api<{ orderId: string; amount: number; keyId: string }>("/api/billing/checkout", { method: "POST" });
+      const o = await api<{ orderId: string; amount: number; keyId: string }>("/api/billing/checkout", { method: "POST", body: { plan } });
       await loadCheckout();
       const rzp = new window.Razorpay!({
         key: o.keyId,
@@ -61,7 +64,7 @@ function Billing() {
         currency: "INR",
         order_id: o.orderId,
         name: "Dinexes",
-        description: `${d.restaurant.name} · ${PLAN_PERIOD_DAYS} days`,
+        description: `${d.restaurant.name} · ${chosen.label}`,
         prefill: { email: d.email, contact: d.restaurant.phone },
         theme: { color: "#131b2b" },
         handler: async (resp: Record<string, string>) => {
@@ -110,22 +113,19 @@ function Billing() {
             {a.state === "expired" && `Ended ${formatDate(a.endsAt)}. Guests cannot place orders until you renew.`}
           </p>
           <div className="mt-6 border-t border-line pt-5">
-            <p className="flex items-baseline gap-1.5">
-              <span className="text-3xl font-bold" data-testid="billing-price">
-                ₹{PLAN_PRICE_INR}
-              </span>
-              <span className="text-muted">/ {PLAN_PERIOD_DAYS} days</span>
+            <p className="text-sm text-muted">
+              Monthly price <span className="font-semibold text-ink" data-testid="billing-price">₹{PLAN_PRICE_INR}</span>. Choose a longer plan to save.
             </p>
-            <ul className="mt-3 space-y-1.5 text-sm">
-              {["QR ordering on every seat", "Kitchen voice announcements", "Kitchen, counter and owner dashboards", `Up to ${MAX_STAFF} staff logins`, "Sales reports"].map((x) => (
-                <li key={x} className="flex gap-2">
-                  <Check className="mt-0.5 size-4 text-ok" /> {x}
-                </li>
+            <div className="mt-4 grid gap-3" role="radiogroup" aria-label="Choose a plan">
+              {PLANS.map((p) => (
+                <button key={p.id} type="button" role="radio" aria-checked={plan === p.id} onClick={() => setPlan(p.id)} className="block w-full text-left">
+                  <PlanCard plan={p} selected={plan === p.id} compact />
+                </button>
               ))}
-            </ul>
+            </div>
             {enabled ? (
               <Button size="lg" className="mt-5 w-full" onClick={pay} loading={busy}>
-                <CreditCard className="size-4" /> {a.state === "active" ? `Pay for next ${PLAN_PERIOD_DAYS} days` : a.state === "expired" ? "Renew now" : "Subscribe now"}
+                <CreditCard className="size-4" /> Pay ₹{chosen.priceInr.toLocaleString("en-IN")} for {chosen.label}
               </Button>
             ) : (
               <div className="mt-5 rounded-lg border border-dashed border-line bg-ivory p-4 text-sm" data-testid="payments-placeholder">
@@ -138,6 +138,9 @@ function Billing() {
                 </p>
               </div>
             )}
+            <p className="mt-3 flex items-center gap-2 text-xs text-muted">
+              <ShieldCheck className="size-4 text-ok" /> UPI, cards and net banking through Razorpay. Your days are added after the current period.
+            </p>
             {error && <Alert tone="bad" className="mt-4">{error}</Alert>}
             {ok && <Alert tone="ok" className="mt-4">{ok}</Alert>}
           </div>
@@ -159,7 +162,9 @@ function Billing() {
                 .map((p) => (
                   <li key={p.id} className="flex items-center justify-between py-3 text-sm">
                     <div>
-                      <p className="font-medium">{formatINR(p.amountPaise)}</p>
+                      <p className="font-medium">
+                        {formatINR(p.amountPaise)} · {planById(p.plan)?.label || "Plan"}
+                      </p>
                       <p className="text-xs text-muted">
                         {p.periodStart && p.periodEnd ? `${formatDate(p.periodStart)} – ${formatDate(p.periodEnd)}` : formatDate(p.createdAt)}
                       </p>

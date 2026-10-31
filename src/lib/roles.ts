@@ -2,15 +2,16 @@
  * Who may do what. The server checks these on every request (src/lib/server/auth.ts); the dashboard
  * uses the same table only to decide which buttons to show.
  */
-export type Role = "owner" | "manager" | "cashier" | "kitchen";
-export const ROLES: Role[] = ["owner", "manager", "cashier", "kitchen"];
-export const STAFF_ROLES: Exclude<Role, "owner">[] = ["manager", "cashier", "kitchen"];
+export type Role = "owner" | "manager" | "cashier" | "kitchen" | "waiter";
+export const ROLES: Role[] = ["owner", "manager", "cashier", "kitchen", "waiter"];
+export const STAFF_ROLES: Exclude<Role, "owner">[] = ["manager", "cashier", "kitchen", "waiter"];
 
 export const ROLE_LABEL: Record<Role, string> = {
   owner: "Owner",
   manager: "Manager",
   cashier: "Cashier",
-  kitchen: "Kitchen",
+  kitchen: "Chef / Kitchen",
+  waiter: "Waiter",
 };
 
 export type Perm =
@@ -39,8 +40,9 @@ const PERMS: Record<Role, Perm[]> = {
     "settings.edit",
   ],
   manager: ["orders.kitchen", "orders.counter", "payments.mark", "menu.edit", "menu.availability", "seats.manage", "reports.view"],
-  cashier: ["orders.counter", "payments.mark"],
-  kitchen: ["orders.kitchen", "menu.availability"],
+  cashier: ["orders.kitchen", "orders.counter", "payments.mark"],
+  kitchen: ["orders.kitchen", "orders.counter", "menu.availability"],
+  waiter: ["orders.kitchen", "orders.counter"],
 };
 
 export function can(role: Role | undefined | null, perm: Perm): boolean {
@@ -74,5 +76,6 @@ export function canTransition(role: Role, from: OrderStatus, to: OrderStatus): b
   if (role === "owner" || role === "manager") return true;
   if (role === "kitchen") return to === "accepted" || to === "preparing" || to === "ready";
   if (role === "cashier") return to === "served" || to === "accepted";
+  if (role === "waiter") return to === "served";
   return false;
 }

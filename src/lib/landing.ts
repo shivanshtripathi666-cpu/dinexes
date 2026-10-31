@@ -5,6 +5,6 @@ export function homeFor(me: MeResponse | null): string {
   if (!me?.restaurant || !me.member) return "/register";
   if (me.member.role === "owner" && !me.restaurant.onboarded) return "/onboarding";
   if (me.member.role === "kitchen") return "/dashboard/kitchen";
-  if (me.member.role === "cashier") return "/dashboard/counter";
+  if (me.member.role === "cashier" || me.member.role === "waiter") return "/dashboard/counter";
   return "/dashboard";
 }

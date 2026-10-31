@@ -2,6 +2,10 @@
 import { ArrowRight, BarChart3, ChefHat, QrCode, Receipt, UtensilsCrossed } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { NextStepButton, useOrderAction } from "@/components/order-actions";
+import { Badge } from "@/components/ui";
+import { STATUS_LABEL } from "@/lib/roles";
+import { ago } from "@/lib/time";
 import { SalesBars } from "@/components/bar-chart";
 import { useDash } from "@/components/dash-context";
 import { NoAccess } from "@/components/dash-shell";
@@ -29,6 +33,8 @@ function Overview() {
   const served = live.filter((o) => o.status === "served").length;
   const top = topDishes(days.slice(-7));
   const anySales = days.some((x) => x.salesPaise > 0);
+  const act = useOrderAction();
+  const active = [...live].filter((o) => o.status !== "served").reverse();
 
   return (
     <div>
@@ -65,6 +71,45 @@ function Overview() {
         <Stat label="In progress" value={today.loading ? "…" : inProgress} hint="Not yet served" />
         <Stat label="Served today" value={today.loading ? "…" : served} />
       </div>
+
+      <Card className="mt-6 p-5" data-testid="live-orders">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="flex items-center gap-2 font-semibold">
+            <span className="relative flex size-2.5">
+              <span className="absolute inline-flex size-full animate-ping rounded-full bg-ok opacity-60" />
+              <span className="relative inline-flex size-2.5 rounded-full bg-ok" />
+            </span>
+            Live orders
+          </h2>
+          <Link href="/dashboard/counter" className="inline-flex items-center gap-1 text-sm font-semibold text-ink hover:underline">
+            All orders <ArrowRight className="size-4" />
+          </Link>
+        </div>
+        {act.error && <p className="mb-2 text-sm text-bad">{act.error}</p>}
+        {today.loading ? (
+          <Spinner />
+        ) : active.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted">No orders in progress. New orders appear here instantly.</p>
+        ) : (
+          <ul className="divide-y divide-line">
+            {active.slice(0, 8).map((o) => (
+              <li key={o.id} className="flex flex-wrap items-center gap-3 py-3">
+                <div className="w-24">
+                  <p className="font-bold">{o.seatLabel}</p>
+                  <p className="text-xs text-muted">
+                    #{o.number} · {ago(o.createdAt)}
+                  </p>
+                </div>
+                <p className="min-w-0 flex-1 truncate text-sm">{o.items.map((i) => `${i.qty} × ${i.name}`).join(", ")}</p>
+                <Badge tone={o.status === "new" ? "amber" : o.status === "ready" ? "ok" : "info"}>{STATUS_LABEL[o.status]}</Badge>
+                <div className="flex w-full gap-2 sm:w-auto">
+                  <NextStepButton o={o} role={d.role} busy={act.busy} onStatus={act.setStatus} size="sm" />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.6fr_1fr]">
         <Card className="p-5">

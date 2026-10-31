@@ -33,6 +33,31 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+a,
+button,
+[role="button"],
+[role="tab"],
+label:has(input[type="checkbox"]),
+label:has(input[type="radio"]),
+summary {
+  cursor: pointer;
+}
+
+/* Gentle press feedback for tappable cards and icons. */
+.tap {
+  transition: transform 120ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+.tap:active {
+  transform: scale(0.98);
+}
+@media (hover: hover) {
+  .tap:hover {
+    border-color: color-mix(in srgb, var(--color-ink) 35%, transparent);
+    box-shadow: 0 6px 18px -10px rgb(18 24 38 / 0.35);
+  }
 }
 
 body {

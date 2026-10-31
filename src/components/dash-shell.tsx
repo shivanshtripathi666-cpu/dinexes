@@ -1,5 +1,5 @@
 "use client";
-import { BarChart3, ChefHat, CreditCard, LayoutDashboard, LogOut, Menu as MenuIcon, QrCode, Receipt, Settings, Users, UtensilsCrossed, X } from "lucide-react";
+import { BarChart3, ChefHat, CreditCard, Ellipsis, LayoutDashboard, LogOut, Menu as MenuIcon, QrCode, Receipt, Settings, Users, UtensilsCrossed, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -126,7 +126,7 @@ export function DashShell({ children }: { children: React.ReactNode }) {
           </div>
         )}
 
-        <main className="px-4 py-6 lg:px-8 lg:py-8">
+        <main className="px-4 pb-28 pt-6 lg:px-8 lg:py-8">
           {d.access.state === "expired" && (
             <Alert tone="bad" title="Your subscription has ended" className="no-print mb-6">
               Guests cannot place new orders until the plan is renewed.{" "}
@@ -141,6 +141,25 @@ export function DashShell({ children }: { children: React.ReactNode }) {
           )}
           {children}
         </main>
+
+        <nav className="no-print fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-navy pb-[env(safe-area-inset-bottom)] lg:hidden" aria-label="Quick menu">
+          <div className="mx-auto flex max-w-lg">
+            {items.slice(0, 4).map((n) => (
+              <Link
+                key={n.href}
+                href={n.href}
+                className={cx("flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium active:scale-95", active(n) ? "text-amber" : "text-ivory/70")}
+              >
+                <n.icon className="size-5" />
+                {n.label}
+              </Link>
+            ))}
+            <button type="button" onClick={() => setOpen(true)} className="flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium text-ivory/70 active:scale-95">
+              <Ellipsis className="size-5" />
+              More
+            </button>
+          </div>
+        </nav>
       </div>
     </div>
   );

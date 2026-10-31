@@ -32,7 +32,7 @@ export function toRestaurant(d: DocumentSnapshot): Restaurant {
 
 export function toMember(d: DocumentSnapshot): Member {
   const x = d.data() || {};
-  return { uid: d.id, name: x.name || "", email: x.email || "", role: x.role, createdAt: x.createdAt || 0 };
+  return { uid: d.id, name: x.name || "", email: x.email || "", role: x.role, duty: x.duty || "", createdAt: x.createdAt || 0 };
 }
 
 export function toSeat(d: DocumentSnapshot): Seat {
@@ -66,6 +66,8 @@ export async function getMenu(rid: string): Promise<{ categories: Category[]; di
         veg: !!x.veg,
         available: x.available !== false,
         sort: x.sort || 0,
+        ratingAvg: x.ratingCount ? Math.round(((x.ratingSum || 0) / x.ratingCount) * 10) / 10 : 0,
+        ratingCount: x.ratingCount || 0,
       };
     }),
   };

@@ -1,4 +1,4 @@
-import { MapPin } from "lucide-react";
+import { MapPin, Star } from "lucide-react";
 import type { PublicMenu } from "@/lib/server/public";
 
 export function MenuHeader({ r, seatLabel }: { r: PublicMenu["restaurant"]; seatLabel?: string }) {
@@ -40,5 +40,13 @@ export function MenuHeader({ r, seatLabel }: { r: PublicMenu["restaurant"]; seat
         </div>
       </div>
     </header>
+  );
+}
+
+export function RatingTag({ avg, count }: { avg: number; count: number }) {
+  return (
+    <p className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-amber-deep" aria-label={`Rated ${avg} out of 5 by ${count} guests`}>
+      <Star className="size-3.5 fill-amber text-amber" /> {avg.toFixed(1)} <span className="font-normal text-muted">({count})</span>
+    </p>
   );
 }

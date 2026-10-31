@@ -141,7 +141,10 @@ export function MenuManager({ rid, canEdit = true }: { rid: string; canEdit?: bo
                         <VegMark veg={d.veg} />
                         <span className="truncate">{d.name}</span>
                       </p>
-                      <p className="text-sm text-muted">{formatINR(d.pricePaise)}</p>
+                      <p className="text-sm text-muted">
+                        {formatINR(d.pricePaise)}
+                        {d.ratingCount > 0 && <span className="ml-2 font-semibold text-amber-deep">★ {d.ratingAvg.toFixed(1)} ({d.ratingCount})</span>}
+                      </p>
                     </div>
                     <label className="flex items-center gap-2 text-xs font-medium text-muted">
                       <span className="hidden sm:inline">{d.available ? "Available" : "Sold out"}</span>

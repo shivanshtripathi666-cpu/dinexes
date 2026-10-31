@@ -1,5 +1,5 @@
 import { devices, expect, test, type BrowserContext, type Page } from "@playwright/test";
-import { FS, PNG, addCategory, addDish, adminGet, adminPatchInt, idToken, register } from "./helpers";
+import { AUTH, FS, PNG, addCategory, addDish, adminGet, adminPatchInt, idToken, register } from "./helpers";
 
 /**
  * The complete flow from the product brief, against the Firebase emulators (real Auth, real
@@ -139,8 +139,16 @@ test("10-11. status changes reach the guest live", async () => {
   await expect(row).toContainText("Paid · CASH");
   await expect(guestPage.getByTestId("order-status")).toHaveText("Served");
 
+  // The guest rates the food; the stars appear on the menu.
+  await expect(guestPage.getByTestId("rate-food")).toBeVisible();
+  await guestPage.getByRole("radio", { name: "5 stars for Chicken Biryani" }).click();
+  await guestPage.getByRole("radio", { name: "4 stars for Cold Coffee" }).click();
+  await guestPage.getByRole("button", { name: "Submit rating" }).click();
+  await expect(guestPage.getByTestId("rated")).toBeVisible();
+
   // Guest orders again from the same seat: a separate order and ticket.
   await guestPage.getByRole("link", { name: "Order more from this seat" }).click();
+  await expect(guestPage.getByLabel("Rated 5 out of 5 by 1 guests")).toBeVisible();
   await guestPage.getByRole("button", { name: "Add Raita" }).click();
   await guestPage.getByTestId("view-cart").click();
   await guestPage.getByRole("button", { name: "Place order" }).click();
@@ -222,23 +230,23 @@ test("12. another restaurant cannot see or change this order", async ({ browser,
   await ctx.close();
 });
 
-test("13-14. four staff logins allowed, the fifth is refused", async ({ request, browser }) => {
+test("13-14. owner adds 3 staff (4 logins), the fifth is refused; staff log in, passwords, removal", async ({ request, browser }) => {
   const p = ownerPage;
   await p.goto("/dashboard/staff");
   await expect(p.getByText("1 of 4 logins used")).toBeVisible();
   const staff = [
-    { name: "Manoj Manager", role: "Manager", email: `manager-${run}@example.com` },
-    { name: "Chetan Cashier", role: "Cashier", email: `cashier-${run}@example.com` },
-    { name: "Kiran Kitchen", role: "Kitchen", email: `kitchen-${run}@example.com` },
+    { name: "Manoj Manager", duty: /^Manager/, email: `manager-${run}@example.com` },
+    { name: "Chetan Cashier", duty: /^Cashier/, email: `cashier-${run}@example.com` },
+    { name: "Kiran Kitchen", duty: /^Chef \/ Kitchen/, email: `kitchen-${run}@example.com` },
   ];
   for (const s of staff) {
     await p.getByTestId("add-staff").click();
     const dlg = p.getByRole("dialog");
-    await dlg.getByLabel("Name").fill(s.name);
-    await dlg.getByLabel("Email").fill(s.email);
-    await dlg.getByLabel("Role").selectOption({ label: s.role });
-    await dlg.getByLabel("Temporary password").fill("Temp12345");
-    await dlg.getByRole("button", { name: "Add login" }).click();
+    await dlg.getByLabel("Name", { exact: true }).fill(s.name);
+    await dlg.getByLabel("Email (Gmail)").fill(s.email);
+    await dlg.getByRole("radio", { name: s.duty }).click();
+    await dlg.getByLabel("Password for this person").fill("Temp12345");
+    await dlg.getByRole("button", { name: "Add staff" }).click();
     await expect(p.getByTestId(`member-${s.email}`)).toBeVisible();
   }
   await expect(p.getByText("4 of 4 logins used")).toBeVisible();
@@ -247,18 +255,20 @@ test("13-14. four staff logins allowed, the fifth is refused", async ({ request,
   const a = await idToken(request, A.email, A.password);
   const fifth = await request.post("/api/staff", {
     headers: { Authorization: `Bearer ${a.token}` },
-    data: { name: "Fifth Person", email: `fifth-${run}@example.com`, role: "cashier", password: "Temp12345" },
+    data: { name: "Fifth Person", email: `fifth-${run}@example.com`, role: "waiter", password: "Temp12345" },
   });
   expect(fifth.status()).toBe(409);
   expect((await fifth.json()).code).toBe("limit");
 
-  // The kitchen login sees the same restaurant's kitchen, and nothing it is not allowed to.
+  // Staff sign in with the Staff tab and land in their restaurant.
   const kctx = await browser.newContext();
   const k = await kctx.newPage();
-  await k.goto("/login");
+  await k.goto("/login?as=staff");
   await k.getByLabel("Email").fill(staff[2].email);
-  await k.getByLabel("Password").fill("Temp12345");
-  await k.getByRole("button", { name: "Sign in" }).click();
+  await k.getByLabel("Password", { exact: true }).fill("Temp12345");
+  await k.getByRole("button", { name: "Show password" }).click();
+  await expect(k.getByLabel("Password", { exact: true })).toHaveAttribute("type", "text");
+  await k.getByRole("button", { name: "Sign in as staff" }).click();
   await k.waitForURL("**/dashboard/kitchen");
   await expect(k.getByTestId(`ticket-${orderNo + 1}`)).toBeVisible();
   await k.goto("/dashboard/staff");
@@ -267,11 +277,23 @@ test("13-14. four staff logins allowed, the fifth is refused", async ({ request,
   const forbidden = await request.post("/api/menu/categories", { headers: { Authorization: `Bearer ${kt.token}` }, data: { name: "Hack" } });
   expect(forbidden.status()).toBe(403);
 
-  // Owner removes the kitchen login: access stops immediately.
-  await p.getByTestId(`member-${staff[2].email}`).getByRole("button", { name: "Remove access" }).click();
+  // Owner sets a new password for the cashier; the new one works.
+  await p.getByTestId(`member-${staff[1].email}`).getByRole("button", { name: "Set new password" }).click();
+  await p.getByRole("dialog").getByLabel("New password").fill("NewPass2468");
+  await p.getByRole("dialog").getByRole("button", { name: "Save new password" }).click();
+  await expect(p.getByText("New password set for Chetan Cashier")).toBeVisible();
+  await idToken(request, staff[1].email, "NewPass2468");
+
+  // Owner removes the kitchen login: it is deleted and cannot sign in again.
+  await p.getByTestId(`member-${staff[2].email}`).getByRole("button", { name: "Remove" }).click();
+  await p.getByRole("dialog").getByRole("button", { name: "Remove access" }).click();
   await expect(p.getByTestId(`member-${staff[2].email}`)).toHaveCount(0);
+  const again = await request.post(`${AUTH}/accounts:signInWithPassword?key=demo-key`, { data: { email: staff[2].email, password: "Temp12345", returnSecureToken: true } });
+  expect(again.ok()).toBeFalsy();
   const after = await request.patch(`/api/orders/abcdefghij`, { headers: { Authorization: `Bearer ${kt.token}` }, data: { status: "accepted" } });
   expect([401, 403]).toContain(after.status());
+  await k.reload();
+  await k.waitForURL("**/login**");
   await kctx.close();
 });
 
@@ -281,10 +303,20 @@ test("15-16. trial status and the ₹399 plan", async ({ page }) => {
   await expect(p.getByTestId("billing-status")).toHaveText("Free trial");
   await expect(p.getByTestId("billing-detail")).toContainText("7 days left");
   await expect(p.getByTestId("billing-price")).toHaveText("₹399");
+  await expect(p.getByTestId("plan-m3")).toContainText("₹899");
+  await expect(p.getByTestId("plan-m6")).toContainText("₹1,499");
   await expect(p.getByTestId("payments-placeholder")).toBeVisible();
 
   await page.goto("/pricing");
   await expect(page.getByTestId("plan-price")).toHaveText("₹399");
+  await expect(page.getByTestId("plan-m3")).toContainText("Save ₹298");
+  await expect(page.getByTestId("plan-m6")).toContainText("Save ₹895");
+  for (const path of ["/privacy", "/terms", "/refund"]) {
+    await page.goto(path);
+    await expect(page.locator("h1")).toBeVisible();
+  }
+  const health = await page.request.get("/api/health");
+  expect(health.status(), await health.text()).toBe(200);
 });
 
 test("17. owner pages work on a phone", async ({ browser }) => {
@@ -292,8 +324,8 @@ test("17. owner pages work on a phone", async ({ browser }) => {
   const p = await ctx.newPage();
   await p.goto("/login");
   await p.getByLabel("Email").fill(A.email);
-  await p.getByLabel("Password").fill(A.password);
-  await p.getByRole("button", { name: "Sign in" }).click();
+  await p.getByLabel("Password", { exact: true }).fill(A.password);
+  await p.getByRole("button", { name: "Sign in as owner" }).click();
   await p.waitForURL("**/dashboard");
   for (const path of ["/dashboard", "/dashboard/kitchen", "/dashboard/counter", "/dashboard/menu", "/dashboard/qr", "/dashboard/staff", "/dashboard/billing", "/dashboard/settings", "/dashboard/reports"]) {
     await p.goto(path);
@@ -301,7 +333,7 @@ test("17. owner pages work on a phone", async ({ browser }) => {
     const fits = await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
     expect(fits, `${path} fits the phone screen`).toBeTruthy();
   }
-  for (const path of ["/", "/pricing", "/register"]) {
+  for (const path of ["/", "/pricing", "/register", "/login", "/privacy"]) {
     await p.goto(path);
     const fits = await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
     expect(fits, `${path} fits the phone screen`).toBeTruthy();

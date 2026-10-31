@@ -58,6 +58,10 @@ service cloud.firestore {
         allow read: if hasRole(rid, ['owner']);
         allow write: if false;
       }
+      match /ratings/{id} {
+        allow read: if hasRole(rid, ['owner', 'manager']);
+        allow write: if false;
+      }
       match /pushTokens/{id} {
         allow read, write: if false;
       }

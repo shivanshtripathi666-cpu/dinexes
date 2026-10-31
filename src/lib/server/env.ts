@@ -1,4 +1,5 @@
 import "server-only";
+import { DEFAULT_SUPPORT_EMAIL } from "@/lib/config";
 
 /** Server-side settings, read from environment variables at run time (see .env.example). */
 function clean(v: string | undefined): string {
@@ -20,6 +21,7 @@ export const env = {
     vapidKey: clean(process.env.FIREBASE_VAPID_KEY),
   },
   serviceAccountBase64: clean(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64),
+  supportEmail: clean(process.env.SUPPORT_EMAIL) || DEFAULT_SUPPORT_EMAIL,
   useEmulators: clean(process.env.USE_FIREBASE_EMULATORS) === "1",
   razorpay: {
     keyId: clean(process.env.RAZORPAY_KEY_ID),

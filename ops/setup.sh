@@ -118,7 +118,9 @@ if ! api GET "$IDT/admin/v2/projects/$P/config" | grep -q '"signIn"'; then
 fi
 api PATCH "$IDT/admin/v2/projects/$P/config?updateMask=signIn.email.enabled,signIn.email.passwordRequired" \
   '{"signIn":{"email":{"enabled":true,"passwordRequired":true}}}' | grep -q '"signIn"' || die "Could not turn on email logins."
-ok "email logins on"
+api PATCH "$IDT/admin/v2/projects/$P/config?updateMask=passwordPolicyConfig,emailPrivacyConfig" \
+  '{"passwordPolicyConfig":{"passwordPolicyEnforcementState":"ENFORCE","forceUpgradeOnSignin":false,"passwordPolicyVersions":[{"customStrengthOptions":{"minPasswordLength":8,"maxPasswordLength":64,"containsNumericCharacter":true}}]},"emailPrivacyConfig":{"enableImprovedEmailPrivacy":true}}' >/dev/null
+ok "email logins on (passwords: 8+ characters with a number; emails cannot be probed)"
 
 say "7/9 Photo storage"
 BUCKET="$P-media"

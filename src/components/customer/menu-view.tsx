@@ -2,7 +2,7 @@ import { QrCode, UtensilsCrossed } from "lucide-react";
 import { formatINR } from "@/lib/money";
 import type { PublicMenu } from "@/lib/server/public";
 import { EmptyState, VegMark } from "../ui";
-import { MenuHeader } from "./menu-header";
+import { MenuHeader, RatingTag } from "./menu-header";
 
 /** Read-only menu for the restaurant's public link. */
 export function MenuView({ menu }: { menu: PublicMenu }) {
@@ -29,6 +29,7 @@ export function MenuView({ menu }: { menu: PublicMenu }) {
                         <VegMark veg={d.veg} /> {d.name}
                       </p>
                       <p className="mt-0.5 text-sm font-semibold">{formatINR(d.pricePaise)}</p>
+                      {d.ratingCount > 0 && <RatingTag avg={d.ratingAvg} count={d.ratingCount} />}
                       {d.description && <p className="mt-1 text-sm text-muted">{d.description}</p>}
                       {!d.available && <p className="mt-1 text-xs font-semibold text-bad">Sold out</p>}
                     </div>

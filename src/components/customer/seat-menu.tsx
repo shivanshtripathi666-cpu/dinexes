@@ -10,7 +10,7 @@ import type { PublicMenu } from "@/lib/server/public";
 import type { Dish } from "@/lib/types";
 import { Modal } from "../modal";
 import { Alert, Button, EmptyState, Textarea, VegMark, cx } from "../ui";
-import { MenuHeader } from "./menu-header";
+import { MenuHeader, RatingTag } from "./menu-header";
 import { drop, load, newKey, save, type SeatOrderRef } from "./storage";
 
 type Menu = PublicMenu & { seat: { label: string; number: number; active: boolean } };
@@ -140,7 +140,14 @@ export function SeatMenu({ token, menu }: { token: string; menu: Menu }) {
               {menu.dishes
                 .filter((d) => d.categoryId === c.id)
                 .map((d) => (
-                  <li key={d.id} className={cx("flex gap-3 rounded-xl border border-line bg-white p-3", !d.available && "opacity-60")} data-testid={`menu-dish-${d.name}`}>
+                  <li
+                    key={d.id}
+                    className={cx("flex gap-3 rounded-xl border border-line bg-white p-3", d.available && menu.ordering.ok ? "tap cursor-pointer" : "opacity-60")}
+                    data-testid={`menu-dish-${d.name}`}
+                    onClick={() => {
+                      if (d.available && menu.ordering.ok && !cart[d.id]) setQty(d.id, 1);
+                    }}
+                  >
                     {d.photoUrl && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={d.photoUrl} alt="" className="size-24 shrink-0 rounded-lg object-cover" loading="lazy" />
@@ -152,6 +159,7 @@ export function SeatMenu({ token, menu }: { token: string; menu: Menu }) {
                         </span>
                         {d.name}
                       </p>
+                      {d.ratingCount > 0 && <RatingTag avg={d.ratingAvg} count={d.ratingCount} />}
                       {d.description && <p className="mt-1 line-clamp-2 text-sm text-muted">{d.description}</p>}
                       <div className="mt-auto flex items-center justify-between pt-2">
                         <span className="font-bold">{formatINR(d.pricePaise)}</span>
