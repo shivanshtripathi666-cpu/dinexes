@@ -35,11 +35,11 @@ wait_op() { # wait_op BASEURL OPNAME
 
 # ---------------------------------------------------------------- project
 say "1/9 Project"
-if [ -f "$STATE_FILE" ]; then P=$(cat "$STATE_FILE"); else P="dinexes-$(tr -dc 'a-z0-9' </dev/urandom | head -c 6)"; fi
+if [ -n "${PROJECT_ID:-}" ]; then P="$PROJECT_ID"; elif [ -f "$STATE_FILE" ]; then P=$(cat "$STATE_FILE"); else P="dinexes-$(tr -dc 'a-z0-9' </dev/urandom | head -c 6)"; fi
 if gcloud projects describe "$P" >/dev/null 2>&1; then
   ok "using existing project $P"
 else
-  gcloud projects create "$P" --name="Dinexes" --quiet || die "Could not create project $P."
+  gcloud projects create "$P" --name="Dinexes" --quiet || die "Could not create project $P. If your project quota is full, pick an unused project and run:  PROJECT_ID=<its id> bash ops/setup.sh"
   ok "created project $P"
 fi
 echo "$P" > "$STATE_FILE"
