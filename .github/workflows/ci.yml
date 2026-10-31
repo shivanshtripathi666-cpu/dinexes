@@ -55,6 +55,17 @@ jobs:
       - name: End-to-end tests (full restaurant flow)
         run: npx playwright test
 
+      - name: Test summary
+        if: always()
+        run: |
+          node -e '
+            const r = require("./test-results.json");
+            const walk = (s) => [...(s.specs || []).map((x) => ({ t: x.title, ok: x.ok, ms: (x.tests[0]?.results || []).reduce((a, b) => a + b.duration, 0), err: x.tests[0]?.results?.[0]?.error?.message || "" })), ...(s.suites || []).flatMap(walk)];
+            const all = r.suites.flatMap(walk);
+            for (const x of all) console.log(`::${x.ok ? "notice" : "error"} title=${x.ok ? "PASS" : "FAIL"}::${x.t} (${Math.round(x.ms / 1000)}s) ${x.err.replace(/\u001b\[[0-9;]*m/g, "").slice(0, 300).replace(/\n/g, " ")}`);
+            console.log(`::notice title=TOTAL::${all.filter((x) => x.ok).length} passed, ${all.filter((x) => !x.ok).length} failed`);
+          ' || echo "::error title=E2E::no results file"
+
       - name: Logs
         if: always()
         run: |
