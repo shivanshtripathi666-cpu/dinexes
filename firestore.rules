@@ -1,0 +1,82 @@
+rules_version = '2';
+
+// Dinexes security rules.
+// - Every write goes through the server (Firebase Admin SDK), which ignores these rules and checks
+//   roles itself. Browsers can never write directly.
+// - Signed-in staff may READ only their own restaurant's data, and only while their membership exists
+//   (removing a staff member blocks them immediately).
+// - Customers (not signed in) can read a single order status by its secret token, nothing else.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    function memberDoc(rid) {
+      return /databases/$(database)/documents/restaurants/$(rid)/members/$(request.auth.uid);
+    }
+    function isMember(rid) {
+      return signedIn() && exists(memberDoc(rid));
+    }
+    function role(rid) {
+      return get(memberDoc(rid)).data.role;
+    }
+    function hasRole(rid, roles) {
+      return isMember(rid) && role(rid) in roles;
+    }
+
+    match /restaurants/{rid} {
+      allow get: if isMember(rid);
+      allow list, create, update, delete: if false;
+
+      match /members/{uid} {
+        allow get: if signedIn() && (request.auth.uid == uid || hasRole(rid, ['owner', 'manager']));
+        allow list: if hasRole(rid, ['owner', 'manager']);
+        allow write: if false;
+      }
+      match /categories/{id} {
+        allow read: if isMember(rid);
+        allow write: if false;
+      }
+      match /dishes/{id} {
+        allow read: if isMember(rid);
+        allow write: if false;
+      }
+      match /seats/{id} {
+        allow read: if hasRole(rid, ['owner', 'manager']);
+        allow write: if false;
+      }
+      match /orders/{id} {
+        allow read: if isMember(rid);
+        allow write: if false;
+      }
+      match /days/{id} {
+        allow read: if hasRole(rid, ['owner', 'manager']);
+        allow write: if false;
+      }
+      match /payments/{id} {
+        allow read: if hasRole(rid, ['owner']);
+        allow write: if false;
+      }
+      match /pushTokens/{id} {
+        allow read, write: if false;
+      }
+    }
+
+    // Public order status for the customer's phone: readable one document at a time by its secret id.
+    match /orderStatus/{token} {
+      allow get: if true;
+      allow list, write: if false;
+    }
+
+    match /users/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow list, write: if false;
+    }
+
+    // seatTokens, slugs, domains: server only.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

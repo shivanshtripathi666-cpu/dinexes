@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+/*
+ * Dinexes design tokens. Dark navy and charcoal surfaces, warm ivory paper, one restrained amber accent.
+ * Use these names (bg-navy, text-ink, border-line, bg-amber ...) instead of raw colours.
+ */
+@theme {
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-fraunces), Georgia, serif;
+
+  --color-ink: #121826;
+  --color-navy: #131b2b;
+  --color-navy-2: #1a2436;
+  --color-navy-3: #24304a;
+  --color-slate: #8a93a6;
+  --color-paper: #fbf8f2;
+  --color-ivory: #f4eee2;
+  --color-sand: #ebe3d3;
+  --color-line: #e2d9c7;
+  --color-muted: #6a6355;
+  --color-amber: #d29b3a;
+  --color-amber-deep: #9a6a17;
+  --color-amber-soft: #f6e7c8;
+  --color-ok: #2e7a57;
+  --color-ok-soft: #e1f0e7;
+  --color-bad: #b2412f;
+  --color-bad-soft: #f8e3dd;
+  --color-info: #2f5d8a;
+  --color-info-soft: #e2ebf4;
+
+  --radius-card: 14px;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "tnum" 1;
+}
+
+::selection {
+  background: var(--color-amber-soft);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-amber);
+  outline-offset: 2px;
+}
+
+.display {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+  }
+}
+
+@keyframes dx-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(210 155 58 / 0.55); }
+  50% { box-shadow: 0 0 0 6px rgb(210 155 58 / 0); }
+}
+.dx-pulse {
+  animation: dx-pulse 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dx-pulse { animation: none; }
+}

@@ -1,0 +1,10 @@
+rules_version = '2';
+// Images are uploaded only through the server (/api/upload), which checks the user's role.
+// Files are served with a private download token in the address; direct listing and writes are blocked.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
