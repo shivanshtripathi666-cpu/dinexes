@@ -19,9 +19,9 @@ object Words {
         if (parts.size <= 1) parts.joinToString("") else parts.dropLast(1).joinToString(", ") + " $and " + parts.last()
 
     fun order(number: String, seat: String, items: List<Line>, mode: String): String = when (mode) {
-        "hi" -> "नया ऑर्डर। सीट नंबर $seat। ${join(items.map { "${HI.getOrElse(it.qty) { it.qty.toString() }} ${it.name}" }, "और")}। ऑर्डर नंबर $number।"
-        "hinglish" -> "Naya order. Seat number $seat. ${join(items.map { "${HR.getOrElse(it.qty) { it.qty.toString() }} ${it.name}" }, "aur")}. Order number $number."
-        else -> "New order. Seat number $seat. ${join(items.map { "${EN.getOrElse(it.qty) { it.qty.toString() }} ${it.name}" }, "and")}. Order number $number."
+        "hi" -> "नया ऑर्डर। सीट नंबर $seat। ${join(items.map { l -> "${HI.getOrElse(l.qty) { l.qty.toString() }} ${l.name}" }, "और")}। ऑर्डर नंबर $number।"
+        "hinglish" -> "Naya order. Seat number $seat. ${join(items.map { l -> "${HR.getOrElse(l.qty) { l.qty.toString() }} ${l.name}" }, "aur")}. Order number $number."
+        else -> "New order. Seat number $seat. ${join(items.map { l -> "${EN.getOrElse(l.qty) { l.qty.toString() }} ${l.name}" }, "and")}. Order number $number."
     }
 }
 
