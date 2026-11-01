@@ -1,0 +1,13 @@
+<resources>
+    <color name="navy">#FF131B2B</color>
+    <color name="navy2">#FF1A2436</color>
+    <color name="ink">#FF121826</color>
+    <color name="paper">#FFFBF8F2</color>
+    <color name="ivory">#FFF4EEE2</color>
+    <color name="line">#FFE2D9C7</color>
+    <color name="muted">#FF6A6355</color>
+    <color name="amber">#FFD29B3A</color>
+    <color name="amber_deep">#FF9A6A17</color>
+    <color name="ok">#FF2E7A57</color>
+    <color name="bad">#FFB2412F</color>
+</resources>

@@ -60,7 +60,7 @@ say "3/9 Turning on Google services (takes 1-2 minutes)"
 gcloud services enable firebase.googleapis.com firestore.googleapis.com identitytoolkit.googleapis.com \
   firebaserules.googleapis.com firebasestorage.googleapis.com storage.googleapis.com run.googleapis.com \
   cloudbuild.googleapis.com artifactregistry.googleapis.com fcm.googleapis.com secretmanager.googleapis.com \
-  iam.googleapis.com compute.googleapis.com firebasehosting.googleapis.com --quiet || die "Could not enable services."
+  iam.googleapis.com compute.googleapis.com firebasehosting.googleapis.com iamcredentials.googleapis.com --quiet || die "Could not enable services."
 ok "services on"
 
 # ---------------------------------------------------------------- firebase
@@ -90,6 +90,25 @@ ok "web app $APP_ID"
 
 # Google sign-in uses the project's Firebase sign-in page (needs the default Hosting site).
 api POST "https://firebasehosting.googleapis.com/v1beta1/projects/$P/sites?siteId=$P" '{}' >/dev/null 2>&1 || true
+
+# Android app (Dinexes app on Play Store): registered in Firebase, with the app's signing fingerprints.
+ANDROID_PKG="com.dinexes.app"
+ANDROID_ID=$(api GET "$FB/projects/$P/androidApps" | js "[a['appId'] for a in d.get('apps',[]) if a.get('packageName')=='$ANDROID_PKG' and a.get('state')=='ACTIVE'][0]")
+if [ -z "$ANDROID_ID" ]; then
+  OP=$(api POST "$FB/projects/$P/androidApps" "{\"packageName\":\"$ANDROID_PKG\",\"displayName\":\"Dinexes Android\"}" | js "d.get('name','')")
+  R=$(wait_op "$FB" "$OP") && ANDROID_ID=$(echo "$R" | js "d['response']['appId']")
+fi
+if [ -n "$ANDROID_ID" ] && command -v keytool >/dev/null 2>&1 && [ -f android/app/debug.keystore ]; then
+  KS=$(keytool -list -v -keystore android/app/debug.keystore -storepass android 2>/dev/null)
+  EXIST=$(api GET "$FB/projects/$P/androidApps/$ANDROID_ID/sha")
+  for t in SHA1 SHA256; do
+    H=$(echo "$KS" | grep -m1 "$t:" | awk '{print $2}' | tr -d ':' | tr 'A-F' 'a-f')
+    if [ -n "$H" ] && ! echo "$EXIST" | grep -q "$H"; then
+      api POST "$FB/projects/$P/androidApps/$ANDROID_ID/sha" "{\"shaHash\":\"$H\",\"certType\":\"$( [ $t = SHA1 ] && echo SHA_1 || echo SHA_256 )\"}" >/dev/null
+    fi
+  done
+fi
+[ -n "$ANDROID_ID" ] && ok "Android app $ANDROID_ID"
 
 say "5/9 Database (Firestore, Mumbai)"
 if gcloud firestore databases describe --database='(default)' >/dev/null 2>&1; then
@@ -123,7 +142,12 @@ api PATCH "$IDT/admin/v2/projects/$P/config?updateMask=signIn.email.enabled,sign
   '{"signIn":{"email":{"enabled":true,"passwordRequired":true}}}' | grep -q '"signIn"' || die "Could not turn on email logins."
 api PATCH "$IDT/admin/v2/projects/$P/config?updateMask=passwordPolicyConfig,emailPrivacyConfig" \
   '{"passwordPolicyConfig":{"passwordPolicyEnforcementState":"ENFORCE","forceUpgradeOnSignin":false,"passwordPolicyVersions":[{"customStrengthOptions":{"minPasswordLength":8,"maxPasswordLength":64,"containsNumericCharacter":true}}]},"emailPrivacyConfig":{"enableImprovedEmailPrivacy":true}}' >/dev/null
-ok "email logins on (passwords: 8+ characters with a number; emails cannot be probed)"
+api PATCH "$IDT/admin/v2/projects/$P/config?updateMask=signIn.phoneNumber.enabled" '{"signIn":{"phoneNumber":{"enabled":true}}}' >/dev/null
+WEB_CLIENT_ID=$(api GET "$IDT/admin/v2/projects/$P/defaultSupportedIdpConfigs/google.com" | js "d.get('clientId','') if d.get('enabled') else ''")
+ok "email and phone logins on (passwords: 8+ characters with a number; emails cannot be probed)"
+if [ -z "$WEB_CLIENT_ID" ]; then
+  printf '   \033[33mGoogle sign-in is off.\033[0m Turn it on once: console.firebase.google.com -> project %s -> Authentication -> Sign-in method -> Add new provider -> Google -> Enable -> Save. Then run this script again.\n' "$P"
+fi
 
 say "7/9 Photo storage"
 BUCKET="$P-media"
@@ -152,12 +176,14 @@ for r in roles/datastore.user roles/firebaseauth.admin roles/firebasecloudmessag
 gcloud storage buckets add-iam-policy-binding "gs://$BUCKET" --member="serviceAccount:$RUN_SA" --role=roles/storage.objectAdmin --quiet >/dev/null || die "Could not give photo access."
 gcloud storage buckets add-iam-policy-binding "gs://$BUCKET" --member="serviceAccount:$RUN_SA" --role=roles/storage.legacyBucketReader --quiet >/dev/null || true
 for r in roles/cloudbuild.builds.builder roles/artifactregistry.writer roles/storage.objectAdmin roles/logging.logWriter; do grant "$BUILD_SA" "$r"; done
+# The website may sign the Android app's built-in browser in (one-time tokens): it signs as itself only.
+gcloud iam service-accounts add-iam-policy-binding "$RUN_SA" --member="serviceAccount:$RUN_SA" --role=roles/iam.serviceAccountTokenCreator --quiet >/dev/null 2>&1 || true
 # The old setup gave extra power to the build account; take back what the website no longer needs.
 gcloud projects remove-iam-policy-binding "$P" --member="serviceAccount:$BUILD_SA" --role=roles/iam.serviceAccountTokenCreator --quiet >/dev/null 2>&1 || true
 ok "permissions set"
 
 say "9/9 Building and deploying the website (5-10 minutes)"
-ENV="FIREBASE_PROJECT_ID=$P,FIREBASE_WEB_API_KEY=$API_KEY,FIREBASE_AUTH_DOMAIN=${AUTH_DOMAIN:-$P.firebaseapp.com},FIREBASE_STORAGE_BUCKET=$BUCKET,FIREBASE_MESSAGING_SENDER_ID=$SENDER,FIREBASE_APP_ID=$APP_ID"
+ENV="FIREBASE_PROJECT_ID=$P,FIREBASE_WEB_API_KEY=$API_KEY,FIREBASE_AUTH_DOMAIN=${AUTH_DOMAIN:-$P.firebaseapp.com},FIREBASE_STORAGE_BUCKET=$BUCKET,FIREBASE_MESSAGING_SENDER_ID=$SENDER,FIREBASE_APP_ID=$APP_ID,ANDROID_APP_ID=${ANDROID_ID:-},GOOGLE_WEB_CLIENT_ID=${WEB_CLIENT_ID:-}"
 gcloud run deploy "$SERVICE" --source . --region "$REGION" --allow-unauthenticated --quiet \
   --memory 512Mi --cpu 1 --min-instances 0 --max-instances 3 --service-account "$RUN_SA" --update-env-vars "$ENV" || die "Deploy failed. Run this again; if it fails twice, send me a screenshot."
 # Public website: anyone may open it. If an organisation policy blocks "allUsers", turn off the invoker check instead.

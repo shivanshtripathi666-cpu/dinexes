@@ -16,7 +16,7 @@ export const POST = handle(async (req: Request) => {
     items: (b.items as { dishId: unknown; qty: unknown }[]).map((i) => ({ dishId: String(i?.dishId ?? ""), qty: Number(i?.qty) })),
   });
   if (r.created && "lines" in r && r.lines) {
-    await notifyNewOrder(r.rid, { number: r.number, seatLabel: r.seatLabel!, lines: r.lines });
+    await notifyNewOrder(r.rid, { id: r.oid, number: r.number, seatNumber: r.seatNumber, seatLabel: r.seatLabel!, lines: r.lines });
   }
   return ok({ number: r.number, publicToken: r.publicToken, created: r.created }, r.created ? 201 : 200);
 });

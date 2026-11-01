@@ -1,0 +1,67 @@
+name: Android app
+
+# Every change to android/ builds a test app (APK) and publishes it on the "app-latest" release, so it
+# can be downloaded and installed on a phone. A commit message containing [release-aab] (or running
+# this workflow by hand) also builds the signed Play Store bundle when the signing secrets exist.
+on:
+  push:
+    paths: ["android/**", ".github/workflows/android.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Version
+        run: |
+          echo "VERSION_CODE=$((GITHUB_RUN_NUMBER + 100))" >> "$GITHUB_ENV"
+          echo "VERSION_NAME=1.0.$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build the test app
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          set +e
+          ./gradlew :app:assembleRelease --no-daemon --console=plain > gradle.log 2>&1
+          code=$?
+          if [ $code -ne 0 ]; then
+            grep -E "^e: |error:|What went wrong|FAILED|Execution failed" gradle.log | head -30 | while IFS= read -r l; do echo "::error title=GRADLE::$l"; done
+            tail -40 gradle.log
+          fi
+          exit $code
+
+      - name: Publish on the app-latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk dinexes.apk
+          gh release view app-latest >/dev/null 2>&1 || gh release create app-latest --title "Dinexes app (latest test build)" --notes "Install dinexes.apk on an Android phone to test. Built from the latest code."
+          gh release upload app-latest dinexes.apk --clobber
+          echo "::notice title=APK::Version ${VERSION_NAME} published on the app-latest release"
+
+      - name: Signed Play Store bundle
+        if: contains(github.event.head_commit.message, '[release-aab]') || github.event_name == 'workflow_dispatch'
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -z "$KS" ]; then echo "::warning title=AAB::Signing secrets not set yet; skipped the Play Store bundle."; exit 0; fi
+          echo "$KS" | base64 -d > "$RUNNER_TEMP/upload.keystore"
+          export KEYSTORE_FILE="$RUNNER_TEMP/upload.keystore"
+          cd android && ./gradlew :app:bundleRelease --no-daemon --console=plain
+          cp app/build/outputs/bundle/release/app-release.aab ../dinexes-${VERSION_CODE}.aab
+          cd .. && gh release upload app-latest dinexes-${VERSION_CODE}.aab --clobber
+          keytool -list -v -keystore "$KEYSTORE_FILE" -storepass "$KEYSTORE_PASSWORD" | grep -E "SHA1|SHA256" | sed 's/^/::notice title=UPLOAD KEY::/'

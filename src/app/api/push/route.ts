@@ -11,7 +11,8 @@ export const POST = handle(async (req: Request) => {
   const m = await requireMember(req);
   const b = await readJson(req);
   const token = str(b.token, "Token", { max: 4096 });
-  await db().doc(`restaurants/${m.rid}/pushTokens/${sha(token, 32)}`).set({ token, uid: m.uid, role: m.role, createdAt: Date.now() });
+  const platform = b.platform === "android" ? "android" : "web";
+  await db().doc(`restaurants/${m.rid}/pushTokens/${sha(token, 32)}`).set({ token, uid: m.uid, role: m.role, platform, createdAt: Date.now() });
   return ok();
 });
 

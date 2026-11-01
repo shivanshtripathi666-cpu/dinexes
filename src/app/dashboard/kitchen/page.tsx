@@ -175,6 +175,8 @@ function Kitchen() {
   }, [orders.data]);
 
   const flashLive = flash ? orders.data.find((o) => o.id === flash.id) || null : null;
+  const [inApp, setInApp] = useState(false);
+  useEffect(() => setInApp(navigator.userAgent.includes("DinexesApp")), []);
   const voiceMissing = started && prefs.voice && speechSupported() && !hasVoiceFor(prefs.lang);
 
   return (
@@ -220,7 +222,12 @@ function Kitchen() {
         </Button>
       </div>
 
-      {!started && resume ? (
+      {inApp ? (
+        <div className="mb-6 rounded-2xl border border-ok/40 bg-ok-soft p-4 text-sm text-ok" data-testid="app-voice">
+          <p className="font-semibold">Voice is handled by the Dinexes app</p>
+          <p className="mt-0.5">New orders are spoken even when the app is closed or the phone is locked. Change voice settings from the app menu.</p>
+        </div>
+      ) : !started && resume ? (
         <button type="button" className="dx-pulse mb-6 w-full rounded-2xl bg-amber p-5 text-left text-ink" data-testid="resume-kitchen">
           <p className="text-lg font-bold">Tap anywhere to turn the voice back on</p>
           <p className="text-sm">Kitchen mode is on for this phone. Phones need one tap after the page reloads.</p>

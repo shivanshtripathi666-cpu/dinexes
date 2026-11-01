@@ -71,6 +71,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     const { disablePushOnThisDevice } = await import("@/lib/push-client");
     await disablePushOnThisDevice();
     await fbSignOut(fb().auth);
+    (window as unknown as { DinexesApp?: { signOut?: () => void } }).DinexesApp?.signOut?.();
     setMe(null);
   }, []);
 

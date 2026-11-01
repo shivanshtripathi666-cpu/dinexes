@@ -132,7 +132,7 @@ export async function createOrder(input: NewOrderInput) {
       { day, orders: FieldValue.increment(1), salesPaise: FieldValue.increment(total), dishes },
       { merge: true },
     );
-    return { created: true, rid, oid, number, publicToken, seatLabel, lines, total };
+    return { created: true, rid, oid, number, publicToken, seatLabel, seatNumber, lines, total };
   });
   return result;
 }

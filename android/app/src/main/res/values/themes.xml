@@ -1,0 +1,16 @@
+<resources>
+    <style name="Theme.Dinexes" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="colorPrimary">@color/navy</item>
+        <item name="colorPrimaryVariant">@color/ink</item>
+        <item name="colorOnPrimary">@color/ivory</item>
+        <item name="colorSecondary">@color/amber</item>
+        <item name="colorOnSecondary">@color/ink</item>
+        <item name="android:colorBackground">@color/paper</item>
+        <item name="android:statusBarColor">@color/navy</item>
+        <item name="android:navigationBarColor">@color/navy</item>
+        <item name="android:windowBackground">@color/paper</item>
+    </style>
+    <style name="Theme.Dinexes.Splash" parent="Theme.Dinexes">
+        <item name="android:windowBackground">@drawable/splash</item>
+    </style>
+</resources>

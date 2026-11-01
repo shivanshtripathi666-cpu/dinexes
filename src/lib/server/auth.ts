@@ -7,6 +7,7 @@ export interface SignedInUser {
   uid: string;
   email: string;
   emailVerified: boolean;
+  phone: string;
 }
 
 export interface MemberContext extends SignedInUser {
@@ -22,7 +23,7 @@ export async function requireUser(req: Request): Promise<SignedInUser> {
   if (!m) throw new HttpError(401, "Please sign in.", "unauthenticated");
   try {
     const t = await adminAuth().verifyIdToken(m[1], true);
-    return { uid: t.uid, email: (t.email || "").toLowerCase(), emailVerified: !!t.email_verified };
+    return { uid: t.uid, email: (t.email || "").toLowerCase(), emailVerified: !!t.email_verified, phone: t.phone_number || "" };
   } catch {
     throw new HttpError(401, "Your session has expired. Please sign in again.", "unauthenticated");
   }

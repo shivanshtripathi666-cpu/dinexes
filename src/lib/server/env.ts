@@ -21,6 +21,10 @@ export const env = {
     vapidKey: clean(process.env.FIREBASE_VAPID_KEY),
   },
   serviceAccountBase64: clean(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64),
+  android: {
+    appId: clean(process.env.ANDROID_APP_ID),
+    webClientId: clean(process.env.GOOGLE_WEB_CLIENT_ID),
+  },
   supportEmail: clean(process.env.SUPPORT_EMAIL) || DEFAULT_SUPPORT_EMAIL,
   useEmulators: clean(process.env.USE_FIREBASE_EMULATORS) === "1",
   razorpay: {
