@@ -32,7 +32,9 @@ jobs:
         run: npm install --no-audit --no-fund
 
       - name: Type check and production build
-        run: npm run build
+        run: |
+          npm run build > build.log 2>&1 || { tail -n 60 build.log; grep -B2 -A8 -E "Type error|Error:|error TS|Failed to compile" build.log | head -40 | tr '\n' '~' | sed 's/~/ ¶ /g' | sed 's/^/::error title=BUILD::/'; echo; exit 1; }
+          tail -n 25 build.log
 
       - name: Install Firebase emulators and browser
         run: |
