@@ -12,4 +12,5 @@ export interface PublicConfig {
   useEmulators: boolean;
   razorpayKeyId: string;
   paymentsEnabled: boolean;
+  supportEmail: string;
 }

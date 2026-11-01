@@ -10,18 +10,16 @@ export async function GET() {
       await fn();
       return "ok";
     } catch (e) {
-      const x = e as { code?: string | number; message?: string };
-      return `failed: ${String(x.code ?? "")} ${String(x.message ?? "").split("\n")[0].slice(0, 160)}`.trim();
+      const x = e as { code?: string | number };
+      return `failed (${String(x.code ?? "error")})`;
     }
   };
   const [database, logins, photos] = await Promise.all([
     check(() => db().collection("slugs").limit(1).get()),
     check(() => adminAuth().listUsers(1)),
-    check(() => bucket().exists()),
+    check(() => bucket().getFiles({ maxResults: 1 })),
   ]);
   const body = {
-    project: env.firebase.projectId,
-    address: env.platformUrl,
     webConfig: env.firebase.apiKey || env.useEmulators ? "ok" : "missing",
     database,
     logins,

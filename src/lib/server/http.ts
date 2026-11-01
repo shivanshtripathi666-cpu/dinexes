@@ -34,6 +34,7 @@ export function handle<A extends unknown[]>(fn: (...args: A) => Promise<Response
 export async function readJson(req: Request): Promise<Record<string, unknown>> {
   const type = req.headers.get("content-type") || "";
   if (!type.includes("application/json")) throw new HttpError(415, "Send JSON.");
+  if (Number(req.headers.get("content-length") || 0) > 100_000) throw new HttpError(413, "Request is too large.");
   const text = await req.text();
   if (text.length > 100_000) throw new HttpError(413, "Request is too large.");
   try {

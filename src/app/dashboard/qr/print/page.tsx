@@ -5,7 +5,7 @@ import { useDash } from "@/components/dash-context";
 import { NoAccess } from "@/components/dash-shell";
 import { QrSvg, seatUrl } from "@/components/qr";
 import { useSeats } from "@/components/seats-manager";
-import { Button, Spinner } from "@/components/ui";
+import { Button, ButtonLink, EmptyState, Spinner } from "@/components/ui";
 import { APP_NAME } from "@/lib/config";
 import { can } from "@/lib/roles";
 
@@ -28,6 +28,10 @@ export default function PrintPage() {
       </div>
       {seats.loading ? (
         <Spinner />
+      ) : list.length === 0 ? (
+        <EmptyState title="No active seats" action={<ButtonLink href="/dashboard/qr">Add seats</ButtonLink>}>
+          Add seats first; each one gets a QR card to print.
+        </EmptyState>
       ) : (
         <div className="grid grid-cols-2 gap-4 print:gap-0 sm:grid-cols-3 print:grid-cols-2">
           {list.map((s) => (

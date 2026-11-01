@@ -1,4 +1,4 @@
-import { requireMember } from "@/lib/server/auth";
+import { requireMember, requireUser } from "@/lib/server/auth";
 import { HttpError, handle, ok } from "@/lib/server/http";
 import { saveImage } from "@/lib/server/uploads";
 
@@ -6,6 +6,9 @@ export const dynamic = "force-dynamic";
 
 /** Image upload (logo, cover, dish photo). multipart/form-data with fields "kind" and "file". */
 export const POST = handle(async (req: Request) => {
+  const len = Number(req.headers.get("content-length") || 0);
+  if (!len || len > 2_200_000) throw new HttpError(413, "Image is too large. Please use one under 2 MB.");
+  await requireUser(req); // reject anonymous uploads before reading the body
   const form = await req.formData().catch(() => null);
   if (!form) throw new HttpError(400, "Please choose an image.");
   const kind = form.get("kind");

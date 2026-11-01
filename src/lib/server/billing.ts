@@ -53,6 +53,20 @@ export function validSignature(orderId: string, paymentId: string, signature: st
 export async function confirmPlanPayment(rid: string, orderId: string, paymentId: string, signature: string) {
   if (!razorpayConfigured()) throw new HttpError(503, "Online payment is not connected yet.", "payments_off");
   if (!validSignature(orderId, paymentId, signature)) throw new HttpError(400, "Payment could not be verified.", "bad_signature");
+  return creditPayment(rid, orderId, paymentId);
+}
+
+/** Razorpay webhook (order.paid): credits the plan even if the owner's browser closed after paying. */
+export function validWebhook(rawBody: string, signature: string): boolean {
+  if (!env.razorpay.webhookSecret) return false;
+  const expected = createHmac("sha256", env.razorpay.webhookSecret).update(rawBody).digest("hex");
+  const a = Buffer.from(expected);
+  const b = Buffer.from(signature || "");
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+/** Adds the paid plan's days once; safe to call again for the same Razorpay order. */
+export async function creditPayment(rid: string, orderId: string, paymentId: string) {
   const f = db();
   const payRef = f.doc(`restaurants/${rid}/payments/${orderId}`);
   const restRef = f.doc(`restaurants/${rid}`);

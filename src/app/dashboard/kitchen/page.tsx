@@ -119,14 +119,16 @@ function Kitchen() {
   }, [waiting.length]);
 
   // Reminder while orders wait to be accepted.
+  const ordersRef = useRef(orders.data);
+  ordersRef.current = orders.data;
   useEffect(() => {
     if (!started || !prefs.remind) return;
     const t = setInterval(() => {
-      const w = orders.data.filter((o) => o.status === "new" && Date.now() - o.createdAt > 60000);
+      const w = ordersRef.current.filter((o) => o.status === "new" && Date.now() - o.createdAt > 60000);
       if (w.length) announce(reminderText(w.length, prefsRef.current.lang), "");
     }, 90000);
     return () => clearInterval(t);
-  }, [started, prefs.remind, orders.data, announce]);
+  }, [started, prefs.remind, announce]);
 
   // Keep the screen on while kitchen mode runs.
   useEffect(() => {
@@ -172,6 +174,7 @@ function Kitchen() {
     };
   }, [orders.data]);
 
+  const flashLive = flash ? orders.data.find((o) => o.id === flash.id) || null : null;
   const voiceMissing = started && prefs.voice && speechSupported() && !hasVoiceFor(prefs.lang);
 
   return (
@@ -256,7 +259,7 @@ function Kitchen() {
       {!speechSupported() && <Alert tone="amber" className="mb-4">This browser cannot speak. Orders will show on screen with a chime. Chrome on Android is recommended.</Alert>}
       {(orders.error || act.error) && <Alert tone="bad" className="mb-4">{orders.error || act.error}</Alert>}
 
-      {flash && flash.status === "new" && (
+      {flashLive && flashLive.status === "new" && (
         <button
           type="button"
           onClick={() => setFlash(null)}
@@ -265,7 +268,7 @@ function Kitchen() {
         >
           <BellRing className="size-6" />
           <span className="text-lg font-bold">
-            New order #{flash.number} · {flash.seatLabel}
+            New order #{flashLive.number} · {flashLive.seatLabel}
           </span>
           <span className="ml-auto text-sm font-semibold underline">Dismiss</span>
         </button>

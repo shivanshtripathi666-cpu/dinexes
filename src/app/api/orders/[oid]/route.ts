@@ -12,8 +12,8 @@ export const PATCH = handle(async (req: Request, ctx: { params: Promise<{ oid: s
   const b = await readJson(req);
   if ("status" in b) {
     const to = oneOf(b.status, "Status", ORDER_STATUSES);
-    const m = await requireMember(req);
-    if (m.role !== "owner" && m.role !== "manager" && m.role !== "kitchen" && m.role !== "cashier") throw new HttpError(403, "Not allowed.");
+    // Every staff role may call this; canTransition() decides which status changes each role can make.
+    const m = await requireMember(req, "orders.counter");
     await updateStatus(m, id(oid, "Order"), to);
     return ok();
   }

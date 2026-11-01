@@ -60,7 +60,7 @@ say "3/9 Turning on Google services (takes 1-2 minutes)"
 gcloud services enable firebase.googleapis.com firestore.googleapis.com identitytoolkit.googleapis.com \
   firebaserules.googleapis.com firebasestorage.googleapis.com storage.googleapis.com run.googleapis.com \
   cloudbuild.googleapis.com artifactregistry.googleapis.com fcm.googleapis.com secretmanager.googleapis.com \
-  iam.googleapis.com --quiet || die "Could not enable services."
+  iam.googleapis.com compute.googleapis.com --quiet || die "Could not enable services."
 ok "services on"
 
 # ---------------------------------------------------------------- firebase
@@ -133,20 +133,30 @@ ok "bucket $BUCKET"
 
 # ---------------------------------------------------------------- run
 PN=$(gcloud projects describe "$P" --format='value(projectNumber)')
-SA="${PN}-compute@developer.gserviceaccount.com"
-say "8/9 Permissions for the app"
-for r in roles/datastore.user roles/firebaseauth.admin roles/storage.objectAdmin roles/firebasecloudmessaging.admin roles/iam.serviceAccountTokenCreator; do
-  gcloud projects add-iam-policy-binding "$P" --member="serviceAccount:$SA" --role="$r" --condition=None --quiet >/dev/null 2>&1 || true
-done
-for r in roles/cloudbuild.builds.builder roles/artifactregistry.writer roles/storage.admin roles/logging.logWriter; do
-  gcloud projects add-iam-policy-binding "$P" --member="serviceAccount:$SA" --role="$r" --condition=None --quiet >/dev/null 2>&1 || true
-done
+BUILD_SA="${PN}-compute@developer.gserviceaccount.com"
+RUN_SA="dinexes-run@$P.iam.gserviceaccount.com"
+say "8/9 Permissions (the website gets only what it needs)"
+if ! gcloud iam service-accounts describe "$RUN_SA" >/dev/null 2>&1; then
+  gcloud iam service-accounts create dinexes-run --display-name="Dinexes website" --quiet >/dev/null || die "Could not create the website's service account."
+  sleep 5
+fi
+grant() { # grant MEMBER ROLE
+  gcloud projects add-iam-policy-binding "$P" --member="serviceAccount:$1" --role="$2" --condition=None --quiet >/dev/null 2>&1 \
+    || { sleep 10; gcloud projects add-iam-policy-binding "$P" --member="serviceAccount:$1" --role="$2" --condition=None --quiet >/dev/null; } \
+    || die "Could not give $2 to $1."
+}
+for r in roles/datastore.user roles/firebaseauth.admin roles/firebasecloudmessaging.admin; do grant "$RUN_SA" "$r"; done
+gcloud storage buckets add-iam-policy-binding "gs://$BUCKET" --member="serviceAccount:$RUN_SA" --role=roles/storage.objectAdmin --quiet >/dev/null || die "Could not give photo access."
+gcloud storage buckets add-iam-policy-binding "gs://$BUCKET" --member="serviceAccount:$RUN_SA" --role=roles/storage.legacyBucketReader --quiet >/dev/null || true
+for r in roles/cloudbuild.builds.builder roles/artifactregistry.writer roles/storage.objectAdmin roles/logging.logWriter; do grant "$BUILD_SA" "$r"; done
+# The old setup gave extra power to the build account; take back what the website no longer needs.
+gcloud projects remove-iam-policy-binding "$P" --member="serviceAccount:$BUILD_SA" --role=roles/iam.serviceAccountTokenCreator --quiet >/dev/null 2>&1 || true
 ok "permissions set"
 
 say "9/9 Building and deploying the website (5-10 minutes)"
 ENV="FIREBASE_PROJECT_ID=$P,FIREBASE_WEB_API_KEY=$API_KEY,FIREBASE_AUTH_DOMAIN=${AUTH_DOMAIN:-$P.firebaseapp.com},FIREBASE_STORAGE_BUCKET=$BUCKET,FIREBASE_MESSAGING_SENDER_ID=$SENDER,FIREBASE_APP_ID=$APP_ID"
 gcloud run deploy "$SERVICE" --source . --region "$REGION" --allow-unauthenticated --quiet \
-  --memory 512Mi --cpu 1 --min-instances 0 --max-instances 3 --set-env-vars "$ENV" || die "Deploy failed. Run this again; if it fails twice, send me a screenshot."
+  --memory 512Mi --cpu 1 --min-instances 0 --max-instances 3 --service-account "$RUN_SA" --update-env-vars "$ENV" || die "Deploy failed. Run this again; if it fails twice, send me a screenshot."
 # Public website: anyone may open it. If an organisation policy blocks "allUsers", turn off the invoker check instead.
 gcloud run services add-iam-policy-binding "$SERVICE" --region "$REGION" --member=allUsers --role=roles/run.invoker --quiet >/dev/null 2>&1 \
   || gcloud run services update "$SERVICE" --region "$REGION" --no-invoker-iam-check --quiet >/dev/null 2>&1 \

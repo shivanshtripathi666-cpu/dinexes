@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { can, ROLE_LABEL, type Perm } from "@/lib/roles";
+import { cfg } from "@/lib/firebase/client";
 import { Mark } from "./brand";
 import { useDash } from "./dash-context";
 import { useSession } from "./session";
@@ -90,7 +91,7 @@ export function DashShell({ children }: { children: React.ReactNode }) {
           <p className="truncate font-semibold lg:hidden">{d.restaurant.name}</p>
           <div className="ml-auto flex items-center gap-2">
             {trial}
-            {d.access.state !== "active" && can(d.role, "billing.manage") && (
+            {d.access.state !== "active" && can(d.role, "billing.manage") && (d.access.state === "expired" || cfg().paymentsEnabled) && (
               <Link href="/dashboard/billing" className={buttonClass("primary", "sm")}>
                 {d.access.state === "expired" ? "Renew" : "Subscribe"}
               </Link>
@@ -101,7 +102,7 @@ export function DashShell({ children }: { children: React.ReactNode }) {
         {open && (
           <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true">
             <div className="absolute inset-0 bg-navy/60" onClick={() => setOpen(false)} />
-            <div className="absolute inset-y-0 left-0 flex w-72 flex-col bg-navy px-3 py-4">
+            <div className="absolute inset-y-0 left-0 flex w-72 flex-col overflow-y-auto bg-navy px-3 py-4">
               <div className="mb-4 flex items-center justify-between px-2">
                 <div className="min-w-0">
                   <p className="truncate font-semibold text-ivory">{d.restaurant.name}</p>

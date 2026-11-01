@@ -3,7 +3,7 @@ import { X } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 /** Accessible dialog using the native <dialog> element (Esc closes, focus is trapped by the browser). */
-export function Modal({ open, onClose, title, children, wide }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode; wide?: boolean }) {
+export function Modal({ open, onClose, title, children, wide, locked }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode; wide?: boolean; locked?: boolean }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const d = ref.current;
@@ -15,8 +15,11 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
     <dialog
       ref={ref}
       onClose={onClose}
+      onCancel={(e) => {
+        if (locked) e.preventDefault();
+      }}
       onClick={(e) => {
-        if (e.target === ref.current) onClose();
+        if (e.target === ref.current && !locked) onClose();
       }}
       className={`m-auto w-[calc(100%-24px)] ${wide ? "max-w-2xl" : "max-w-lg"} rounded-2xl border border-line bg-paper p-0 text-ink backdrop:bg-navy/60`}
     >
@@ -24,7 +27,7 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
         <div className="max-h-[85dvh] overflow-y-auto">
           <div className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-paper px-5 py-4">
             <h2 className="text-lg font-semibold">{title}</h2>
-            <button type="button" onClick={onClose} className="rounded-md p-1.5 text-muted hover:bg-sand" aria-label="Close">
+            <button type="button" onClick={onClose} disabled={locked} className="rounded-md p-1.5 text-muted hover:bg-sand" aria-label="Close">
               <X className="size-5" />
             </button>
           </div>

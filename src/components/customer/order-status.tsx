@@ -3,6 +3,7 @@ import { doc, onSnapshot } from "firebase/firestore";
 import { Check, ChefHat, CircleX, Clock, HandPlatter, Plus, Star } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, errorText } from "@/lib/api";
+import { load } from "./storage";
 import { fb } from "@/lib/firebase/client";
 import { formatINR } from "@/lib/money";
 import { STATUS_LABEL, type OrderStatus } from "@/lib/roles";
@@ -21,6 +22,10 @@ const STEPS: { s: OrderStatus; label: string; text: string; icon: typeof Check }
 export function OrderStatusView({ token, initial }: { token: string; initial: PublicOrderStatus }) {
   const [o, setO] = useState(initial);
   const [live, setLive] = useState(true);
+  const [seat, setSeat] = useState("");
+  useEffect(() => {
+    setSeat(load<string>(`dx-seat-of-${token}`, ""));
+  }, [token]);
 
   useEffect(() => {
     let stop = () => {};
@@ -119,9 +124,13 @@ export function OrderStatusView({ token, initial }: { token: string; initial: Pu
 
         {o.status === "served" && <RateFood token={token} items={o.items} rated={!!o.rated} />}
 
-        <a href={`/t/${o.seatToken}`} className={buttonClass("dark", "lg", "w-full")}>
-          <Plus className="size-4" /> Order more from this seat
-        </a>
+        {seat ? (
+          <a href={`/t/${seat}`} className={buttonClass("dark", "lg", "w-full")}>
+            <Plus className="size-4" /> Order more from this seat
+          </a>
+        ) : (
+          <p className="text-center text-sm text-muted">To order more, scan the QR code on your seat again.</p>
+        )}
         {!live && <p className="text-center text-xs text-muted">Live updates are slow on this connection; the status refreshes every few seconds.</p>}
       </main>
     </div>
@@ -154,7 +163,8 @@ function RateFood({ token, items, rated }: { token: string; items: PublicOrderSt
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [done, setDone] = useState(rated);
+  const [justRated, setDone] = useState(false);
+  const done = rated || justRated;
   if (!rateable.length) return null;
   if (done) {
     return (

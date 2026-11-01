@@ -7,7 +7,7 @@ export function SalesBars({ days }: { days: DayStats[] }) {
   const max = Math.max(...days.map((d) => d.salesPaise), 1);
   return (
     <div>
-      <div className="flex h-44 items-end gap-1.5" role="img" aria-label="Daily sales chart">
+      <div className={`flex h-44 items-end ${days.length > 31 ? "gap-px" : days.length > 14 ? "gap-1" : "gap-1.5"}`} role="img" aria-label="Daily sales chart">
         {days.map((d) => (
           <div key={d.day} className="group relative flex h-full flex-1 flex-col justify-end">
             <div className="rounded-t-[3px] bg-navy-3 transition-colors group-hover:bg-amber" style={{ height: `${Math.max(d.salesPaise ? 3 : 0, (d.salesPaise / max) * 100)}%` }} />

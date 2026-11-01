@@ -161,8 +161,11 @@ refused, role limits, revoking a login, trial and expiry, the ₹399 plan, and p
    gcloud run services update dinexes --region asia-south1 \
      --update-env-vars RAZORPAY_KEY_ID=rzp_test_xxx --update-secrets RAZORPAY_KEY_SECRET=razorpay-key-secret:latest
    ```
-3. Billing page now shows **Subscribe / Renew**. Each payment adds 30 days, starting when the current trial or paid period ends.
-4. When ready, switch to Live keys the same way.
+3. Webhook (so a payment is credited even if the owner closes the page): Razorpay Dashboard → **Webhooks → Add** →
+   URL `<PLATFORM_URL>/api/billing/webhook`, event **order.paid**, choose a secret, then
+   `gcloud run services update dinexes --region asia-south1 --update-env-vars RAZORPAY_WEBHOOK_SECRET=<that secret>`.
+4. Billing page now shows the plans (1 month ₹399, 3 months ₹899, 6 months ₹1,499). Each payment adds 30 days, starting when the current trial or paid period ends.
+5. When ready, switch to Live keys the same way.
 
 Until both keys are set, the billing page clearly says payment is not connected, and nothing can be marked paid.
 Automatic monthly charging (Razorpay Subscriptions with mandates) is a later step; this version uses a pay-per-period checkout.

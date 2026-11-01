@@ -239,6 +239,7 @@ function DishEditor({
   error: string;
 }) {
   const [v, setV] = useState(value);
+  const [uploading, setUploading] = useState(false);
   return (
     <form
       className="space-y-4"
@@ -277,18 +278,25 @@ function DishEditor({
       </div>
       <div>
         <p className="mb-2 text-sm font-semibold">Photo</p>
-        <ImagePicker kind="dish" value={v.photoUrl} onChange={(url) => setV({ ...v, photoUrl: url })} label="Add photo" />
+        <ImagePicker kind="dish" value={v.photoUrl} onChange={(url) => setV((x) => ({ ...x, photoUrl: url }))} onBusy={setUploading} label="Add photo" />
       </div>
       {error && <Alert tone="bad">{error}</Alert>}
       <div className="flex flex-wrap gap-2 pt-2">
-        <Button type="submit" loading={busy}>
-          {v.id ? "Save dish" : "Add dish"}
+        <Button type="submit" loading={busy} disabled={uploading}>
+          {uploading ? "Uploading photo…" : v.id ? "Save dish" : "Add dish"}
         </Button>
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
         {onDelete && (
-          <Button type="button" variant="ghost" className="ml-auto text-bad" onClick={onDelete}>
+          <Button
+            type="button"
+            variant="ghost"
+            className="ml-auto text-bad"
+            onClick={() => {
+              if (window.confirm(`Delete ${v.name}? This cannot be undone.`)) onDelete();
+            }}
+          >
             <Trash2 className="size-4" /> Delete
           </Button>
         )}

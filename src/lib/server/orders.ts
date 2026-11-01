@@ -116,7 +116,6 @@ export async function createOrder(input: NewOrderInput) {
       oid,
       restaurantName: restaurant.name,
       restaurantSlug: restaurant.slug,
-      seatToken: input.seatToken,
       number,
       seatLabel,
       items: lines.map((l) => ({ dishId: l.dishId, name: l.name, qty: l.qty })),

@@ -24,6 +24,7 @@ export const PATCH = handle(async (req: Request) => {
   const patch: Record<string, unknown> = {};
   if ("name" in b) patch.name = str(b.name, "Category name", { max: 40 });
   if ("sort" in b) patch.sort = int(b.sort, "Order", 0, 10000);
+  if (!Object.keys(patch).length) throw new HttpError(400, "Nothing to update.");
   await ref.update(patch);
   return ok();
 });

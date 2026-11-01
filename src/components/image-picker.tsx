@@ -11,12 +11,14 @@ export function ImagePicker({
   onChange,
   label,
   aspect = "square",
+  onBusy,
 }: {
   kind: "logo" | "cover" | "dish";
   value: string;
   onChange: (url: string) => void;
   label: string;
   aspect?: "square" | "wide";
+  onBusy?: (busy: boolean) => void;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -28,12 +30,14 @@ export function ImagePicker({
     if (!f) return;
     setError("");
     setBusy(true);
+    onBusy?.(true);
     try {
       onChange(await uploadImage(kind, f));
     } catch (err) {
       setError(errorText(err));
     } finally {
       setBusy(false);
+      onBusy?.(false);
     }
   }
 

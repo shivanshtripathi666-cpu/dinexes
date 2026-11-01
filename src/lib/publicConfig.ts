@@ -19,5 +19,6 @@ export function publicConfig(): PublicConfig {
     useEmulators: env.useEmulators,
     razorpayKeyId: razorpayConfigured() ? env.razorpay.keyId : "",
     paymentsEnabled: razorpayConfigured(),
+    supportEmail: env.supportEmail,
   };
 }

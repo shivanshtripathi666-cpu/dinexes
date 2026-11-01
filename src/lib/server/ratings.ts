@@ -18,7 +18,12 @@ export async function rateOrder(publicToken: string, ratings: { dishId: string; 
     if (s.get("rated")) throw new HttpError(409, "Thank you, you have already rated this order.");
     const rid = s.get("rid") as string;
     const allowed = new Set(((s.get("items") as { dishId?: string }[]) || []).map((i) => i.dishId).filter(Boolean));
-    const clean = ratings.filter((r) => allowed.has(r.dishId));
+    const seen = new Set<string>();
+    const clean = ratings.filter((r) => {
+      if (!allowed.has(r.dishId) || seen.has(r.dishId)) return false;
+      seen.add(r.dishId);
+      return true;
+    });
     if (!clean.length) throw new HttpError(400, "Please rate at least one dish.");
     const refs = clean.map((r) => f.doc(`restaurants/${rid}/dishes/${r.dishId}`));
     const dishes = await tx.getAll(...refs);

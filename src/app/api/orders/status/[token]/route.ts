@@ -13,7 +13,7 @@ export const GET = handle(async (_req: Request, ctx: { params: Promise<{ token: 
   return ok({
     restaurantName: x.restaurantName,
     restaurantSlug: x.restaurantSlug,
-    seatToken: x.seatToken,
+    rated: !!x.rated,
     number: x.number,
     seatLabel: x.seatLabel,
     items: x.items,

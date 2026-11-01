@@ -71,6 +71,7 @@ export function SeatMenu({ token, menu }: { token: string; menu: Menu }) {
       });
       drop(idemKey, true);
       drop(cartKey);
+      save(`dx-seat-of-${r.publicToken}`, token);
       const refs = [{ token: r.publicToken, number: r.number, at: Date.now() }, ...past.filter((p) => p.token !== r.publicToken)].slice(0, 10);
       save(ordersKey, refs);
       router.push(`/o/${r.publicToken}`);
@@ -197,7 +198,7 @@ export function SeatMenu({ token, menu }: { token: string; menu: Menu }) {
         </div>
       )}
 
-      <Modal open={open} onClose={() => !busy && setOpen(false)} title={`Your order · ${menu.seat.label}`}>
+      <Modal open={open} locked={busy} onClose={() => setOpen(false)} title={`Your order · ${menu.seat.label}`}>
         <ul className="divide-y divide-line">
           {lines.map((l) => (
             <li key={l.dish.id} className="flex items-center gap-3 py-3">

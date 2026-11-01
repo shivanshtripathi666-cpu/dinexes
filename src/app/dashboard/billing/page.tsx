@@ -138,11 +138,14 @@ function Billing() {
             ) : (
               <div className="mt-5 rounded-lg border border-dashed border-line bg-ivory p-4 text-sm" data-testid="payments-placeholder">
                 <p className="flex items-center gap-2 font-semibold">
-                  <Info className="size-4" /> Online payment is not connected yet
+                  <Info className="size-4" /> Online payment is coming soon
                 </p>
                 <p className="mt-1 text-muted">
-                  The platform owner has not added Razorpay keys. No payment can be taken here, and nothing is marked as paid. See “Connect payments” in
-                  the README.
+                  To choose a plan now, write to{" "}
+                  <a className="font-semibold text-ink underline" href={`mailto:${cfg().supportEmail}?subject=${encodeURIComponent(`Dinexes plan for ${d.restaurant.name}`)}`}>
+                    {cfg().supportEmail}
+                  </a>{" "}
+                  with your restaurant name and the plan you want.
                 </p>
               </div>
             )}

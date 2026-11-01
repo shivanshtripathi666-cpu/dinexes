@@ -26,6 +26,7 @@ export const env = {
   razorpay: {
     keyId: clean(process.env.RAZORPAY_KEY_ID),
     keySecret: clean(process.env.RAZORPAY_KEY_SECRET),
+    webhookSecret: clean(process.env.RAZORPAY_WEBHOOK_SECRET),
   },
 };
 

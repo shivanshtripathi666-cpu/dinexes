@@ -19,6 +19,7 @@ export function AddSeatsForm({ onDone, initial = 10 }: { onDone?: () => void; in
   const [count, setCount] = useState(String(initial));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [okMsg, setOkMsg] = useState("");
   return (
     <form
       className="flex flex-wrap items-end gap-2"
@@ -26,8 +27,11 @@ export function AddSeatsForm({ onDone, initial = 10 }: { onDone?: () => void; in
         e.preventDefault();
         setBusy(true);
         setError("");
+        setOkMsg("");
         try {
           await api("/api/seats", { method: "POST", body: { count: Number(count) } });
+          setOkMsg(`${count} ${count === "1" ? "seat" : "seats"} added.`);
+          setCount("1");
           onDone?.();
         } catch (err) {
           setError(errorText(err));
@@ -44,6 +48,7 @@ export function AddSeatsForm({ onDone, initial = 10 }: { onDone?: () => void; in
         Add seats
       </Button>
       {error && <Alert tone="bad" className="w-full">{error}</Alert>}
+      {okMsg && <Alert tone="ok" className="w-full">{okMsg}</Alert>}
     </form>
   );
 }

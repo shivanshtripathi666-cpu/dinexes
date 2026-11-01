@@ -17,7 +17,8 @@ export default async function OrderPage({ params }: { params: Promise<{ token: s
   const initial: PublicOrderStatus = {
     restaurantName: x.restaurantName,
     restaurantSlug: x.restaurantSlug,
-    seatToken: x.seatToken,
+    seatToken: "",
+    rated: !!x.rated,
     number: x.number,
     seatLabel: x.seatLabel,
     items: x.items,

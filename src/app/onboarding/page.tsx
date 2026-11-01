@@ -24,7 +24,7 @@ export default function OnboardingPage() {
 function Wizard() {
   const d = useDash();
   const router = useRouter();
-  const { refresh } = useSession();
+  const { refresh, signOut } = useSession();
   const [step, setStep] = useState(0);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -53,7 +53,19 @@ function Wizard() {
       <header className="border-b border-line bg-paper">
         <div className="mx-auto flex h-16 max-w-4xl items-center justify-between px-4">
           <Logo href="/onboarding" />
-          <span className="text-sm text-muted">Setting up {d.restaurant.name}</span>
+          <div className="flex items-center gap-4">
+            <span className="hidden text-sm text-muted sm:inline">Setting up {d.restaurant.name}</span>
+            <button
+              type="button"
+              onClick={async () => {
+                await signOut();
+                router.replace("/login");
+              }}
+              className="text-sm font-semibold text-muted underline underline-offset-4 hover:text-ink"
+            >
+              Sign out
+            </button>
+          </div>
         </div>
       </header>
       <div className="mx-auto max-w-4xl px-4 py-8">
