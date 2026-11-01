@@ -9,6 +9,7 @@ import { useSession } from "@/components/session";
 import { Alert, Button, Field, Input, cx } from "@/components/ui";
 import { api, errorText } from "@/lib/api";
 import { fb } from "@/lib/firebase/client";
+import { GoogleMark, finishGoogleRedirect, googleSignIn } from "@/lib/google";
 import { homeFor } from "@/lib/landing";
 import type { MeResponse } from "@/lib/types";
 
@@ -35,6 +36,25 @@ function Login() {
     if (!loading && me?.restaurant && !busy) router.replace(homeFor(me));
   }, [loading, me, router, busy]);
 
+  useEffect(() => {
+    finishGoogleRedirect().then((ok) => {
+      if (ok) void afterSignIn("owner");
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function google() {
+    setError("");
+    setBusy(true);
+    try {
+      if (await googleSignIn()) await afterSignIn("owner");
+      else setBusy(false);
+    } catch (err) {
+      setError(errorText(err));
+      setBusy(false);
+    }
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -47,6 +67,11 @@ function Login() {
       setBusy(false);
       return;
     }
+    await afterSignIn(tab);
+  }
+
+  async function afterSignIn(tab: "owner" | "staff") {
+    setBusy(true);
     let m: MeResponse;
     try {
       m = await api<MeResponse>("/api/me");
@@ -119,6 +144,16 @@ function Login() {
           : "For staff added by the owner. Use the email and password your owner gave you. Staff do not register."}
       </p>
 
+      {tab === "owner" && (
+        <>
+          <Button type="button" variant="outline" size="lg" className="mt-6 w-full bg-white" onClick={google} disabled={busy} data-testid="google-login">
+            <GoogleMark /> Continue with Google
+          </Button>
+          <div className="mt-6 flex items-center gap-3 text-xs font-semibold uppercase tracking-wide text-muted">
+            <span className="h-px flex-1 bg-line" /> or with email <span className="h-px flex-1 bg-line" />
+          </div>
+        </>
+      )}
       <form onSubmit={submit} className="mt-6 space-y-4">
         <Field label="Email" htmlFor="email">
           <Input id="email" type="email" inputMode="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@gmail.com" />

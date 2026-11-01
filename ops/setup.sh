@@ -60,7 +60,7 @@ say "3/9 Turning on Google services (takes 1-2 minutes)"
 gcloud services enable firebase.googleapis.com firestore.googleapis.com identitytoolkit.googleapis.com \
   firebaserules.googleapis.com firebasestorage.googleapis.com storage.googleapis.com run.googleapis.com \
   cloudbuild.googleapis.com artifactregistry.googleapis.com fcm.googleapis.com secretmanager.googleapis.com \
-  iam.googleapis.com compute.googleapis.com --quiet || die "Could not enable services."
+  iam.googleapis.com compute.googleapis.com firebasehosting.googleapis.com --quiet || die "Could not enable services."
 ok "services on"
 
 # ---------------------------------------------------------------- firebase
@@ -87,6 +87,9 @@ AUTH_DOMAIN=$(echo "$CFG" | js "d.get('authDomain','')")
 SENDER=$(echo "$CFG" | js "d.get('messagingSenderId','')")
 [ -z "$API_KEY" ] && die "Could not read the web app settings."
 ok "web app $APP_ID"
+
+# Google sign-in uses the project's Firebase sign-in page (needs the default Hosting site).
+api POST "https://firebasehosting.googleapis.com/v1beta1/projects/$P/sites?siteId=$P" '{}' >/dev/null 2>&1 || true
 
 say "5/9 Database (Firestore, Mumbai)"
 if gcloud firestore databases describe --database='(default)' >/dev/null 2>&1; then

@@ -61,6 +61,8 @@ test("1-2. owner registers a restaurant and creates the menu", async ({ browser 
   await p.waitForURL("**/dashboard");
   await expect(p.getByText("Orders today")).toBeVisible();
   await expect(p.getByText("No sales yet")).toBeVisible();
+  await expect(p.getByTestId("your-plan")).toContainText("ACTIVE");
+  await expect(p.getByTestId("choose-m6")).toContainText("₹1,499");
 });
 
 test("4. QR codes exist for all 10 seats", async () => {
@@ -191,6 +193,12 @@ test("12. another restaurant cannot see or change this order", async ({ browser,
 
   const b = await idToken(request, B.email, B.password);
   const a = await idToken(request, A.email, A.password);
+
+  // An account whose email is not verified cannot create a restaurant (no free-trial farming).
+  const su = await request.post(`${AUTH}/accounts:signUp?key=demo-key`, { data: { email: `unverified-${run}@example.com`, password: "Passw0rd-x1", returnSecureToken: true } });
+  const unverified = (await su.json()).idToken;
+  const blockedReg = await request.post("/api/restaurants", { headers: { Authorization: `Bearer ${unverified}` }, data: { name: "Fake Cafe", ownerName: "X Y", phone: "9876512345", city: "Delhi" } });
+  expect(blockedReg.status()).toBe(403);
 
   // API: B's login cannot change A's order.
   const change = await request.patch(`/api/orders/${oidA}`, { headers: { Authorization: `Bearer ${b.token}` }, data: { status: "cancelled" } });

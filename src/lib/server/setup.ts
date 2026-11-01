@@ -14,6 +14,7 @@ export const DEFAULT_HOURS: Hours[] = DAYS.map((day) => ({ day, open: "10:00", c
  * 7-day trial. A user can belong to only one restaurant.
  */
 export async function createRestaurant(user: SignedInUser, input: { name: string; ownerName: string; phone: string; city: string }) {
+  if (!user.emailVerified) throw new HttpError(403, "Please verify your email first. Open the link we sent to your inbox.", "unverified");
   const f = db();
   const base = slugify(input.name);
   const userRef = f.doc(`users/${user.uid}`);

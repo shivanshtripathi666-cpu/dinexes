@@ -1,5 +1,6 @@
 "use client";
 import { createUserWithEmailAndPassword, sendEmailVerification, updateProfile } from "firebase/auth";
+import { MailCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
@@ -9,6 +10,7 @@ import { Alert, Button, Field, Input, Spinner } from "@/components/ui";
 import { api, errorText } from "@/lib/api";
 import { PLAN_PRICE_INR, TRIAL_DAYS, planById } from "@/lib/config";
 import { fb } from "@/lib/firebase/client";
+import { GoogleMark, finishGoogleRedirect, googleSignIn } from "@/lib/google";
 import { homeFor } from "@/lib/landing";
 
 export default function RegisterPage() {
@@ -19,9 +21,25 @@ export default function RegisterPage() {
   );
 }
 
+function Divider() {
+  return (
+    <div className="my-6 flex items-center gap-3 text-xs font-semibold uppercase tracking-wide text-muted">
+      <span className="h-px flex-1 bg-line" /> or with email <span className="h-px flex-1 bg-line" />
+    </div>
+  );
+}
+
 function Register() {
   const router = useRouter();
   const chosen = planById(useSearchParams().get("plan") || "");
+  const { user, me, loading, refresh } = useSession();
+  const [acct, setAcct] = useState({ ownerName: "", email: "", password: "" });
+  const [rest, setRest] = useState({ name: "", phone: "", city: "" });
+  const [busy, setBusy] = useState("");
+  const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
+  const [verified, setVerified] = useState(false);
+
   useEffect(() => {
     if (!chosen) return;
     try {
@@ -30,42 +48,99 @@ function Register() {
       /* ignore */
     }
   }, [chosen]);
-  const { user, me, loading, refresh } = useSession();
-  const [form, setForm] = useState({ ownerName: "", email: "", password: "", name: "", phone: "", city: "" });
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+
+  useEffect(() => {
+    void finishGoogleRedirect();
+  }, []);
 
   useEffect(() => {
     if (!loading && me?.restaurant) router.replace(homeFor(me));
   }, [loading, me, router]);
 
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));
-  const accountExists = !!user && !me?.restaurant;
+  useEffect(() => {
+    setVerified(!!user?.emailVerified);
+  }, [user]);
 
-  async function submit(e: React.FormEvent) {
+  const step: "account" | "verify" | "restaurant" = !user ? "account" : !verified ? "verify" : "restaurant";
+
+  async function google() {
+    setError("");
+    setBusy("google");
+    try {
+      if (await googleSignIn()) await refresh();
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function createAccount(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    const problem = accountExists ? "" : passwordProblem(form.password);
-    if (problem) {
-      setError(`Password: ${problem}`);
-      return;
-    }
-    setBusy(true);
+    const problem = passwordProblem(acct.password);
+    if (problem) return setError(`Password: ${problem}`);
+    if (acct.ownerName.trim().length < 2) return setError("Please enter your name.");
+    setBusy("account");
     try {
-      if (!accountExists) {
-        const cred = await createUserWithEmailAndPassword(fb().auth, form.email.trim(), form.password);
-        await updateProfile(cred.user, { displayName: form.ownerName.trim() });
-        sendEmailVerification(cred.user).catch(() => undefined);
+      const cred = await createUserWithEmailAndPassword(fb().auth, acct.email.trim(), acct.password);
+      await updateProfile(cred.user, { displayName: acct.ownerName.trim() });
+      await sendEmailVerification(cred.user);
+      setInfo(`We sent a verification link to ${cred.user.email}.`);
+    } catch (err) {
+      setError(errorText(err));
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function checkVerified() {
+    const u = fb().auth.currentUser;
+    if (!u) return;
+    setError("");
+    setBusy("check");
+    try {
+      await u.reload();
+      if (u.emailVerified) {
+        await u.getIdToken(true);
+        setVerified(true);
+      } else {
+        setError("Not verified yet. Open the email from Dinexes (check Spam too) and tap the link, then try again.");
       }
+    } catch (err) {
+      setError(errorText(err));
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function resend() {
+    const u = fb().auth.currentUser;
+    if (!u) return;
+    setError("");
+    try {
+      await sendEmailVerification(u);
+      setInfo(`A new link was sent to ${u.email}.`);
+    } catch (err) {
+      setError(errorText(err));
+    }
+  }
+
+  async function createRestaurant(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setBusy("restaurant");
+    try {
+      await fb().auth.currentUser?.getIdToken(true);
       await api("/api/restaurants", {
         method: "POST",
-        body: { name: form.name, ownerName: form.ownerName || user?.displayName || "Owner", phone: form.phone, city: form.city },
+        body: { ...rest, ownerName: user?.displayName || acct.ownerName || "Owner" },
       });
       await refresh();
       router.push("/onboarding");
     } catch (err) {
       setError(errorText(err));
-      setBusy(false);
+      setBusy("");
     }
   }
 
@@ -79,60 +154,102 @@ function Register() {
 
   return (
     <div>
+      <ol className="mb-6 flex gap-2 text-xs font-semibold" aria-label="Steps">
+        {["Account", "Verify email", "Restaurant"].map((s, i) => {
+          const idx = step === "account" ? 0 : step === "verify" ? 1 : 2;
+          return (
+            <li key={s} className={`flex-1 rounded-full py-1 text-center ${i <= idx ? "bg-navy text-ivory" : "bg-sand text-muted"}`}>
+              {i + 1}. {s}
+            </li>
+          );
+        })}
+      </ol>
       <h1 className="display text-3xl font-semibold">Register your restaurant</h1>
-      <p className="mt-1 text-sm font-medium text-amber-deep">For restaurant owners only. Staff are added by the owner after sign-up.</p>
+      <p className="mt-1 text-sm font-medium text-amber-deep">For restaurant owners. Staff are added by the owner later.</p>
       <p className="mt-2 text-muted">
         {chosen
           ? `${TRIAL_DAYS} days free, then ${chosen.label} for ₹${chosen.priceInr.toLocaleString("en-IN")} if you continue. No card needed now.`
           : `${TRIAL_DAYS} days free, then from ₹${PLAN_PRICE_INR} a month. No card needed now.`}
       </p>
-      {accountExists && (
-        <Alert tone="info" className="mt-5">
-          You are signed in as {user?.email}. Add your restaurant details to continue.
-        </Alert>
-      )}
-      <form onSubmit={submit} className="mt-7 space-y-4" noValidate>
-        {!accountExists && (
-          <>
+
+      {step === "account" && (
+        <>
+          <Button type="button" variant="outline" size="lg" className="mt-7 w-full bg-white" onClick={google} loading={busy === "google"} data-testid="google-signup">
+            <GoogleMark /> Continue with Google
+          </Button>
+          <Divider />
+          <form onSubmit={createAccount} className="space-y-4" noValidate>
             <Field label="Your name" htmlFor="ownerName">
-              <Input id="ownerName" autoComplete="name" required value={form.ownerName} onChange={set("ownerName")} />
+              <Input id="ownerName" autoComplete="name" required value={acct.ownerName} onChange={(e) => setAcct({ ...acct, ownerName: e.target.value })} />
             </Field>
             <Field label="Email" htmlFor="email">
-              <Input id="email" type="email" autoComplete="email" required value={form.email} onChange={set("email")} />
+              <Input id="email" type="email" inputMode="email" autoComplete="email" required value={acct.email} onChange={(e) => setAcct({ ...acct, email: e.target.value })} placeholder="you@gmail.com" />
             </Field>
             <Field label="Password" htmlFor="password">
-              <PasswordInput id="password" autoComplete="new-password" required minLength={8} value={form.password} onChange={set("password")} />
+              <PasswordInput id="password" autoComplete="new-password" required value={acct.password} onChange={(e) => setAcct({ ...acct, password: e.target.value })} />
             </Field>
-            <PasswordHint value={form.password} />
-          </>
-        )}
-        <Field label="Restaurant name" htmlFor="name">
-          <Input id="name" required value={form.name} onChange={set("name")} placeholder="e.g. Royal Biryani House" />
-        </Field>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Phone" htmlFor="phone">
-            <Input id="phone" type="tel" inputMode="tel" autoComplete="tel" required value={form.phone} onChange={set("phone")} placeholder="98765 43210" />
-          </Field>
-          <Field label="City" htmlFor="city">
-            <Input id="city" required value={form.city} onChange={set("city")} placeholder="Prayagraj" />
-          </Field>
+            <PasswordHint value={acct.password} />
+            {error && <Alert tone="bad">{error}</Alert>}
+            <Button type="submit" size="lg" className="w-full" loading={busy === "account"}>
+              Create account
+            </Button>
+          </form>
+        </>
+      )}
+
+      {step === "verify" && (
+        <div className="mt-7 space-y-4">
+          <div className="flex gap-4 rounded-xl border border-amber/50 bg-amber-soft p-5">
+            <MailCheck className="size-7 shrink-0 text-amber-deep" />
+            <div>
+              <p className="font-semibold">Verify your email</p>
+              <p className="mt-1 text-sm">
+                {info || `We sent a verification link to ${user?.email}.`} Open Gmail, tap the link, then come back here.
+              </p>
+            </div>
+          </div>
+          {error && <Alert tone="bad">{error}</Alert>}
+          <Button size="lg" className="w-full" onClick={checkVerified} loading={busy === "check"}>
+            I have verified my email
+          </Button>
+          <button type="button" onClick={resend} className="w-full text-center text-sm font-semibold text-ink underline underline-offset-4">
+            Send the link again
+          </button>
         </div>
-        {error && <Alert tone="bad">{error}</Alert>}
-        <Button type="submit" size="lg" className="w-full" loading={busy}>
-          Create restaurant
-        </Button>
-        <p className="text-center text-xs text-muted">
-          By registering you agree to the{" "}
-          <Link href="/terms" className="underline">
-            Terms
-          </Link>{" "}
-          and{" "}
-          <Link href="/privacy" className="underline">
-            Privacy policy
-          </Link>
-          .
-        </p>
-      </form>
+      )}
+
+      {step === "restaurant" && (
+        <form onSubmit={createRestaurant} className="mt-7 space-y-4" noValidate>
+          <Alert tone="ok">Signed in as {user?.email}. Now add your restaurant.</Alert>
+          <Field label="Restaurant name" htmlFor="name">
+            <Input id="name" required value={rest.name} onChange={(e) => setRest({ ...rest, name: e.target.value })} placeholder="e.g. Royal Biryani House" />
+          </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Phone" htmlFor="phone">
+              <Input id="phone" type="tel" inputMode="tel" autoComplete="tel" required value={rest.phone} onChange={(e) => setRest({ ...rest, phone: e.target.value })} placeholder="98765 43210" />
+            </Field>
+            <Field label="City" htmlFor="city">
+              <Input id="city" required value={rest.city} onChange={(e) => setRest({ ...rest, city: e.target.value })} placeholder="Prayagraj" />
+            </Field>
+          </div>
+          {error && <Alert tone="bad">{error}</Alert>}
+          <Button type="submit" size="lg" className="w-full" loading={busy === "restaurant"}>
+            Start {TRIAL_DAYS}-day free trial
+          </Button>
+        </form>
+      )}
+
+      <p className="mt-4 text-center text-xs text-muted">
+        By registering you agree to the{" "}
+        <Link href="/terms" className="underline">
+          Terms
+        </Link>{" "}
+        and{" "}
+        <Link href="/privacy" className="underline">
+          Privacy policy
+        </Link>
+        .
+      </p>
       <p className="mt-6 text-sm text-muted">
         Already registered?{" "}
         <Link href="/login" className="font-semibold text-ink underline underline-offset-4">

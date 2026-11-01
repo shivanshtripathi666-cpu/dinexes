@@ -37,9 +37,7 @@ export default function Home() {
               <ButtonLink href="/register" size="lg">
                 Start {TRIAL_DAYS}-day free trial <ArrowRight className="size-4" />
               </ButtonLink>
-              <ButtonLink href="/#plans" variant="outline" size="lg" className="border-white/25 text-ivory hover:bg-white/5">
-                See plans
-              </ButtonLink>
+
             </div>
             <p className="mt-3 text-sm text-ivory/55">No card needed for the trial. No commission on your orders.</p>
           </div>

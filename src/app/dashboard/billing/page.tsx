@@ -49,6 +49,8 @@ function Billing() {
   const [plan, setPlan] = useState<PlanId>("m3");
   useEffect(() => {
     try {
+      const fromLink = new URLSearchParams(window.location.search).get("plan");
+      if (fromLink && planById(fromLink)) return setPlan(fromLink as PlanId);
       const saved = localStorage.getItem("dx-plan");
       if (saved && planById(saved)) setPlan(saved as PlanId);
     } catch {

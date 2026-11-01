@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui";
 import { STATUS_LABEL } from "@/lib/roles";
 import { ago } from "@/lib/time";
 import { SalesBars } from "@/components/bar-chart";
+import { YourPlan } from "@/components/your-plan";
 import { useDash } from "@/components/dash-context";
 import { NoAccess } from "@/components/dash-shell";
 import { Card, EmptyState, PageHeader, Spinner, Stat, buttonClass } from "@/components/ui";
@@ -63,6 +64,12 @@ function Overview() {
             Add seats
           </Link>
         </Card>
+      )}
+
+      {can(d.role, "billing.manage") && (
+        <div className="mb-6">
+          <YourPlan />
+        </div>
       )}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

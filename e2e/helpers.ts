@@ -32,15 +32,35 @@ export async function adminPatchInt(request: APIRequestContext, path: string, fi
   expect(r.ok(), await r.text()).toBeTruthy();
 }
 
+/** Opens the email-verification link the Auth emulator "sent". */
+export async function verifyEmail(request: APIRequestContext, email: string) {
+  await expect
+    .poll(async () => {
+      const r = await request.get(`http://127.0.0.1:9099/emulator/v1/projects/${PROJECT}/oobCodes`);
+      const codes = ((await r.json()).oobCodes || []) as { email: string; requestType: string; oobLink: string }[];
+      return codes.filter((c) => c.email === email && c.requestType === "VERIFY_EMAIL").length;
+    })
+    .toBeGreaterThan(0);
+  const r = await request.get(`http://127.0.0.1:9099/emulator/v1/projects/${PROJECT}/oobCodes`);
+  const codes = ((await r.json()).oobCodes || []) as { email: string; requestType: string; oobLink: string }[];
+  const link = codes.filter((c) => c.email === email && c.requestType === "VERIFY_EMAIL").pop()!.oobLink;
+  expect((await request.get(link)).ok()).toBeTruthy();
+}
+
 export async function register(page: Page, o: { name: string; email: string; password: string; restaurant: string; phone: string; city: string }) {
   await page.goto("/register");
   await page.getByLabel("Your name").fill(o.name);
   await page.getByLabel("Email", { exact: true }).fill(o.email);
   await page.getByLabel("Password", { exact: true }).fill(o.password);
+  await page.getByRole("button", { name: "Create account" }).click();
+  await expect(page.getByText("Verify your email")).toBeVisible();
+  // Before verifying, the server refuses to create a restaurant.
+  await verifyEmail(page.request, o.email);
+  await page.getByRole("button", { name: "I have verified my email" }).click();
   await page.getByLabel("Restaurant name").fill(o.restaurant);
   await page.getByLabel("Phone").fill(o.phone);
   await page.getByLabel("City").fill(o.city);
-  await page.getByRole("button", { name: "Create restaurant" }).click();
+  await page.getByRole("button", { name: /Start 7-day free trial/ }).click();
   await page.waitForURL("**/onboarding");
 }
 
