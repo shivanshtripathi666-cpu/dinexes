@@ -1,7 +1,7 @@
 "use client";
 import { orderBy } from "firebase/firestore";
 import { CreditCard, Info, ShieldCheck } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useDash } from "@/components/dash-context";
 import { NoAccess } from "@/components/dash-shell";
 import { useSession } from "@/components/session";
@@ -47,6 +47,14 @@ function Billing() {
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
   const [plan, setPlan] = useState<PlanId>("m3");
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("dx-plan");
+      if (saved && planById(saved)) setPlan(saved as PlanId);
+    } catch {
+      /* ignore */
+    }
+  }, []);
   const chosen = planById(plan)!;
   const enabled = cfg().paymentsEnabled;
   const a = d.access;

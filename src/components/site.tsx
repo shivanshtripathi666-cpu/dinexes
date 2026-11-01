@@ -12,8 +12,8 @@ export function SiteHeader() {
           <Link href="/#how" className="hidden rounded-md px-3 py-2 text-sm text-ivory/80 hover:text-ivory sm:block">
             How it works
           </Link>
-          <Link href="/pricing" className="hidden rounded-md px-3 py-2 text-sm text-ivory/80 hover:text-ivory sm:block">
-            Pricing
+          <Link href="/#plans" className="hidden rounded-md px-3 py-2 text-sm text-ivory/80 hover:text-ivory sm:block">
+            Plans
           </Link>
           <Link href="/login" className="rounded-md px-3 py-2 text-sm text-ivory/80 hover:text-ivory">
             Sign in

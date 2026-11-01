@@ -12,7 +12,7 @@ import { enablePush } from "@/lib/push-client";
 import { STATUS_LABEL, can, canTransition } from "@/lib/roles";
 import { ago, formatTime } from "@/lib/time";
 import type { Order } from "@/lib/types";
-import { announcementText, chime, hasVoiceFor, reminderText, speak, speechSupported, unlockAudio, type VoiceLang } from "@/lib/voice";
+import { announcementText, chime, hasVoiceFor, loadVoices, reminderText, speak, speechSupported, unlockAudio, type VoiceLang } from "@/lib/voice";
 
 interface Prefs {
   voice: boolean;
@@ -53,10 +53,25 @@ function Kitchen() {
   const startedRef = useRef(started);
   startedRef.current = started;
 
+  const [, setVoicesTick] = useState(0);
+  const [resume, setResume] = useState(false);
+
   useEffect(() => {
     const p = load<Partial<Prefs>>("dx-kitchen-prefs", {});
     setPrefs((x) => ({ ...x, ...p }));
     setHistory(load<Announcement[]>("dx-kitchen-history", []));
+    loadVoices(() => setVoicesTick((t) => t + 1));
+    // Kitchen mode stays on until sign-out. Phones need one tap after a reload before sound can play.
+    if (load<boolean>("dx-kitchen-on", false)) {
+      setResume(true);
+      const once = () => {
+        unlockAudio();
+        setStarted(true);
+        setResume(false);
+      };
+      document.addEventListener("pointerdown", once, { once: true });
+      return () => document.removeEventListener("pointerdown", once);
+    }
   }, []);
   useEffect(() => save("dx-kitchen-prefs", prefs), [prefs]);
   useEffect(() => {
@@ -136,9 +151,16 @@ function Kitchen() {
   async function start() {
     unlockAudio();
     setStarted(true);
+    setResume(false);
+    save("dx-kitchen-on", true);
     chime(prefs.volume);
     const msg = await enablePush();
     setNotice(msg);
+  }
+
+  function stop() {
+    setStarted(false);
+    save("dx-kitchen-on", false);
   }
 
   const columns = useMemo(() => {
@@ -195,7 +217,12 @@ function Kitchen() {
         </Button>
       </div>
 
-      {!started ? (
+      {!started && resume ? (
+        <button type="button" className="dx-pulse mb-6 w-full rounded-2xl bg-amber p-5 text-left text-ink" data-testid="resume-kitchen">
+          <p className="text-lg font-bold">Tap anywhere to turn the voice back on</p>
+          <p className="text-sm">Kitchen mode is on for this phone. Phones need one tap after the page reloads.</p>
+        </button>
+      ) : !started ? (
         <div className="mb-6 rounded-2xl border border-amber/50 bg-amber-soft p-5">
           <p className="font-semibold">Start kitchen mode to hear new orders</p>
           <p className="mt-1 text-sm text-muted">
@@ -209,6 +236,9 @@ function Kitchen() {
       ) : (
         <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
           <Badge tone="ok">Kitchen mode on</Badge>
+          <button type="button" onClick={stop} className="text-xs font-semibold text-muted underline underline-offset-2">
+            Turn off
+          </button>
           <label className="flex items-center gap-2 text-muted">
             Remind me about orders not accepted
             <Toggle label="Reminders" checked={prefs.remind} onChange={(v) => setPrefs({ ...prefs, remind: v })} />
@@ -217,8 +247,10 @@ function Kitchen() {
       )}
       {notice && <Alert tone="info" className="mb-4">{notice} New orders still appear here and play the chime while this page is open.</Alert>}
       {voiceMissing && (
-        <Alert tone="amber" className="mb-4">
-          This phone has no {prefs.lang === "hi" ? "Hindi" : "English"} voice installed. Install one in Android Settings → Text-to-speech, or switch the language.
+        <Alert tone="amber" className="mb-4" title={prefs.lang === "hi" ? "Hindi voice is not installed on this phone" : "No voice installed"}>
+          {prefs.lang === "hi"
+            ? "Orders are spoken in Hinglish for now (“Naya order. Seat number 2 …”). For proper Hindi: Android Settings → search “Text-to-speech” → Preferred engine: Speech Services by Google → ⚙ → Install voice data → Hindi (India). Then reload this page."
+            : "Install a voice in Android Settings → Text-to-speech → Speech Services by Google → Install voice data."}
         </Alert>
       )}
       {!speechSupported() && <Alert tone="amber" className="mb-4">This browser cannot speak. Orders will show on screen with a chime. Chrome on Android is recommended.</Alert>}

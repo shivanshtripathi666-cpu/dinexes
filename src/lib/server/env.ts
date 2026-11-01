@@ -33,8 +33,9 @@ export function razorpayConfigured(): boolean {
   return !!(env.razorpay.keyId && env.razorpay.keySecret);
 }
 
+/** Web push works with Firebase's default key; a custom VAPID key is optional. */
 export function pushConfigured(): boolean {
-  return !env.useEmulators && !!env.firebase.vapidKey;
+  return !env.useEmulators;
 }
 
 export function storageBucketName(): string {

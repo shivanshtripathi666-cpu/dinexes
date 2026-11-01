@@ -68,6 +68,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const refresh = useCallback(() => load(fb().auth.currentUser), [load]);
   const signOut = useCallback(async () => {
+    const { disablePushOnThisDevice } = await import("@/lib/push-client");
+    await disablePushOnThisDevice();
     await fbSignOut(fb().auth);
     setMe(null);
   }, []);

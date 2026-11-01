@@ -1,6 +1,7 @@
 import { Check } from "lucide-react";
 import { PLANS, PLAN_PRICE_INR, planSaving } from "@/lib/config";
-import { cx } from "./ui";
+import Link from "next/link";
+import { buttonClass, cx } from "./ui";
 
 type Plan = (typeof PLANS)[number];
 
@@ -14,7 +15,7 @@ export const PLAN_FEATURES = [
 ];
 
 /** One plan card. Used on the pricing page (as a link) and on billing (as a selectable button). */
-export function PlanCard({ plan, selected, compact }: { plan: Plan; selected?: boolean; compact?: boolean }) {
+export function PlanCard({ plan, selected, compact, cta }: { plan: Plan; selected?: boolean; compact?: boolean; cta?: React.ReactNode }) {
   const saving = planSaving(plan);
   const perMonth = Math.round(plan.priceInr / plan.months);
   return (
@@ -50,6 +51,26 @@ export function PlanCard({ plan, selected, compact }: { plan: Plan; selected?: b
           ))}
         </ul>
       )}
+      {cta && <div className="mt-auto pt-5">{cta}</div>}
+    </div>
+  );
+}
+
+/** The three plans with a "Start free trial" button each (home and pricing pages). */
+export function PlanGrid() {
+  return (
+    <div className="grid gap-5 md:grid-cols-3">
+      {PLANS.map((p) => (
+        <PlanCard
+          key={p.id}
+          plan={p}
+          cta={
+            <Link href={`/register?plan=${p.id}`} className={buttonClass(p.tag === "Best value" ? "primary" : "dark", "lg", "w-full")} data-testid={`start-${p.id}`}>
+              Start free trial
+            </Link>
+          }
+        />
+      ))}
     </div>
   );
 }

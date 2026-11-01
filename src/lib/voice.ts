@@ -9,6 +9,7 @@ import type { OrderLine } from "./types";
 export type VoiceLang = "en" | "hi";
 
 const EN_NUM = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty"];
+const HI_ROMAN = ["shunya", "ek", "do", "teen", "chaar", "paanch", "chhah", "saat", "aath", "nau", "das", "gyaarah", "baarah", "terah", "chaudah", "pandrah", "solah", "satrah", "athaarah", "unnees", "bees"];
 const HI_NUM = ["शून्य", "एक", "दो", "तीन", "चार", "पाँच", "छह", "सात", "आठ", "नौ", "दस", "ग्यारह", "बारह", "तेरह", "चौदह", "पंद्रह", "सोलह", "सत्रह", "अठारह", "उन्नीस", "बीस"];
 
 function list(parts: string[], and: string) {
@@ -17,6 +18,11 @@ function list(parts: string[], and: string) {
 }
 
 export function announcementText(o: { number: number; seatNumber: number; seatLabel: string; items: Pick<OrderLine, "name" | "qty">[] }, lang: VoiceLang): string {
+  if (lang === "hi" && !hindiVoiceReady()) {
+    // No Hindi voice on this phone: say it in Hinglish with the Indian English voice, which reads it clearly.
+    const items = list(o.items.map((i) => `${HI_ROMAN[i.qty] || i.qty} ${i.name}`), "aur");
+    return `Naya order. Seat number ${o.seatNumber}. ${items}. Order number ${o.number}.`;
+  }
   if (lang === "hi") {
     const items = list(o.items.map((i) => `${HI_NUM[i.qty] || i.qty} ${i.name}`), "और");
     return `नया ऑर्डर। सीट नंबर ${o.seatNumber}। ${items}। ऑर्डर नंबर ${o.number}।`;
@@ -26,6 +32,7 @@ export function announcementText(o: { number: number; seatNumber: number; seatLa
 }
 
 export function reminderText(waiting: number, lang: VoiceLang) {
+  if (lang === "hi" && !hindiVoiceReady()) return `Dhyaan dijiye. ${waiting} order abhi accept nahi hue hain.`;
   return lang === "hi" ? `याद दिलाना। ${waiting} ऑर्डर स्वीकार होने का इंतज़ार कर रहे हैं।` : `Reminder. ${waiting} ${waiting === 1 ? "order is" : "orders are"} waiting to be accepted.`;
 }
 
@@ -69,18 +76,44 @@ export function chime(volume = 1) {
   });
 }
 
+let voiceCache: SpeechSynthesisVoice[] = [];
+
+/** Phones load their voices a moment after the page opens; keep the list fresh. */
+export function loadVoices(onChange?: () => void) {
+  if (!speechSupported()) return;
+  const read = () => {
+    const v = window.speechSynthesis.getVoices();
+    if (v.length) voiceCache = v;
+    onChange?.();
+  };
+  read();
+  window.speechSynthesis.addEventListener("voiceschanged", read);
+}
+
+function voices(): SpeechSynthesisVoice[] {
+  if (!speechSupported()) return [];
+  const v = window.speechSynthesis.getVoices();
+  if (v.length) voiceCache = v;
+  return voiceCache;
+}
+
+function hindiVoiceReady(): boolean {
+  return voices().some((v) => v.lang.toLowerCase().replace("_", "-").startsWith("hi"));
+}
+
 function pickVoice(lang: VoiceLang): SpeechSynthesisVoice | null {
-  const voices = window.speechSynthesis.getVoices();
-  const want = lang === "hi" ? ["hi-IN", "hi"] : ["en-IN", "en-GB", "en-US", "en"];
+  const list = voices();
+  const want = lang === "hi" && hindiVoiceReady() ? ["hi-in", "hi"] : ["en-in", "en-gb", "en-us", "en"];
   for (const w of want) {
-    const v = voices.find((x) => x.lang.toLowerCase().startsWith(w.toLowerCase()));
+    const v = list.find((x) => x.lang.toLowerCase().replace("_", "-").startsWith(w));
     if (v) return v;
   }
   return null;
 }
 
+/** True when the phone has a real voice for the language (Hindi falls back to Hinglish otherwise). */
 export function hasVoiceFor(lang: VoiceLang): boolean {
-  return speechSupported() && !!pickVoice(lang);
+  return speechSupported() && (lang === "hi" ? hindiVoiceReady() : !!pickVoice("en"));
 }
 
 declare global {
@@ -97,7 +130,7 @@ export function speak(text: string, opts: { lang: VoiceLang; volume: number; rat
     const u = new SpeechSynthesisUtterance(text);
     const v = pickVoice(opts.lang);
     if (v) u.voice = v;
-    u.lang = v?.lang || (opts.lang === "hi" ? "hi-IN" : "en-IN");
+    u.lang = v?.lang || (opts.lang === "hi" && hindiVoiceReady() ? "hi-IN" : "en-IN");
     u.volume = Math.max(0, Math.min(1, opts.volume));
     u.rate = opts.rate ?? 0.95;
     let done = false;
@@ -110,6 +143,9 @@ export function speak(text: string, opts: { lang: VoiceLang; volume: number; rat
     u.onend = () => finish(true);
     u.onerror = () => finish(false);
     setTimeout(() => finish(false), 15000 + text.length * 120);
+    // Android Chrome sometimes gets stuck "paused"; clear and resume before speaking.
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.resume();
     window.speechSynthesis.speak(u);
   });
 }

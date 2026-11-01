@@ -1,9 +1,8 @@
 import { ArrowRight, ShieldCheck } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
-import { PlanCard } from "@/components/plans";
+import { PlanGrid } from "@/components/plans";
 import { ButtonLink } from "@/components/ui";
-import { MAX_STAFF, PLANS, PLAN_PRICE_INR, TRIAL_DAYS } from "@/lib/config";
+import { MAX_STAFF, PLAN_PRICE_INR, TRIAL_DAYS } from "@/lib/config";
 
 export const metadata: Metadata = { title: "Pricing" };
 
@@ -28,12 +27,8 @@ export default function Pricing() {
         </p>
       </div>
 
-      <div className="mt-10 grid gap-5 md:grid-cols-3">
-        {PLANS.map((p) => (
-          <Link key={p.id} href="/register" className="block" aria-label={`Start free trial, then ${p.label} for ₹${p.priceInr}`}>
-            <PlanCard plan={p} />
-          </Link>
-        ))}
+      <div className="mt-10">
+        <PlanGrid />
       </div>
       <div className="mt-8 flex flex-wrap items-center gap-4">
         <ButtonLink href="/register" size="lg">

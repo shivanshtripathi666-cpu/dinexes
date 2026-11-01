@@ -8,7 +8,7 @@ import { cfg, fb } from "./firebase/client";
  */
 export async function enablePush(): Promise<string> {
   const c = cfg();
-  if (!c.vapidKey) return "Push notifications are not set up on this server yet.";
+  if (c.useEmulators) return "Push notifications are off in test mode.";
   if (!("Notification" in window) || !("serviceWorker" in navigator)) return "This browser does not support push notifications.";
   const perm = await Notification.requestPermission();
   if (perm !== "granted") return "Notifications were not allowed. You can allow them in the browser's site settings.";
@@ -16,11 +16,29 @@ export async function enablePush(): Promise<string> {
     const { getMessaging, getToken, isSupported } = await import("firebase/messaging");
     if (!(await isSupported())) return "This browser does not support push notifications.";
     const reg = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
-    const token = await getToken(getMessaging(fb().app), { vapidKey: c.vapidKey, serviceWorkerRegistration: reg });
+    const token = await getToken(getMessaging(fb().app), { ...(c.vapidKey ? { vapidKey: c.vapidKey } : {}), serviceWorkerRegistration: reg });
     if (!token) return "Could not turn on push notifications.";
     await api("/api/push", { method: "POST", body: { token } });
+    try {
+      localStorage.setItem("dx-push-token", token);
+    } catch {
+      /* ignore */
+    }
     return "";
   } catch {
     return "Could not turn on push notifications on this device.";
   }
+}
+
+/** On sign-out: stop alerts to this device and forget kitchen mode. */
+export async function disablePushOnThisDevice() {
+  let token = "";
+  try {
+    token = localStorage.getItem("dx-push-token") || "";
+    localStorage.removeItem("dx-push-token");
+    localStorage.removeItem("dx-kitchen-on");
+  } catch {
+    /* ignore */
+  }
+  if (token) await api("/api/push", { method: "DELETE", body: { token } }).catch(() => undefined);
 }

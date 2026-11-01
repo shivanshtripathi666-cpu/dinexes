@@ -16,11 +16,14 @@ export async function notifyNewOrder(rid: string, o: { number: number; seatLabel
     const res = await messaging().sendEachForMulticast({
       tokens,
       webpush: {
+        headers: { Urgency: "high", TTL: "600" },
         notification: {
           title: `New order #${o.number} · ${o.seatLabel}`,
           body,
           tag: `order-${o.number}`,
+          renotify: true,
           requireInteraction: true,
+          vibrate: [400, 150, 400, 150, 400],
           icon: `${env.platformUrl}/icon.svg`,
         },
         fcmOptions: { link: `${env.platformUrl}/dashboard/kitchen` },

@@ -1,4 +1,5 @@
 import { ArrowRight, BellRing, ChefHat, LayoutDashboard, QrCode, Receipt, ShieldCheck, Smartphone, UtensilsCrossed, Volume2 } from "lucide-react";
+import { PlanGrid } from "@/components/plans";
 import { ButtonLink } from "@/components/ui";
 import { PLAN_PRICE_INR, TRIAL_DAYS, MAX_STAFF } from "@/lib/config";
 
@@ -36,47 +37,65 @@ export default function Home() {
               <ButtonLink href="/register" size="lg">
                 Start {TRIAL_DAYS}-day free trial <ArrowRight className="size-4" />
               </ButtonLink>
-              <ButtonLink href="/pricing" variant="outline" size="lg" className="border-white/25 text-ivory hover:bg-white/5">
-                ₹{PLAN_PRICE_INR} per month
+              <ButtonLink href="/#plans" variant="outline" size="lg" className="border-white/25 text-ivory hover:bg-white/5">
+                See plans
               </ButtonLink>
             </div>
             <p className="mt-3 text-sm text-ivory/55">No card needed for the trial. No commission on your orders.</p>
           </div>
 
-          <div className="relative" aria-label="Example of a kitchen order ticket">
-            <div className="rounded-2xl border border-white/10 bg-navy-2 p-5">
-              <div className="flex items-center justify-between text-xs text-slate">
-                <span className="inline-flex items-center gap-1.5">
-                  <BellRing className="size-3.5 text-amber" /> Kitchen screen
-                </span>
-                <span>Example</span>
+          <div className="relative mx-auto w-full max-w-md md:mx-0" aria-label="Preview of the guest menu and the kitchen screen">
+            <div className="relative z-10 ml-auto w-[78%] rounded-[28px] border-[6px] border-ink bg-paper p-3 text-ink shadow-2xl">
+              <div className="mx-auto mb-3 h-1.5 w-14 rounded-full bg-ink/80" />
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[11px] text-muted">Royal Biryani House</p>
+                  <p className="text-sm font-bold">Main course</p>
+                </div>
+                <span className="rounded bg-amber px-1.5 py-0.5 text-[11px] font-bold">Seat 2</span>
               </div>
-              <div className="mt-4 rounded-xl bg-paper p-4 text-ink">
+              {[
+                ["Chicken Biryani", "₹180", "4.8", true],
+                ["Paneer Butter Masala", "₹220", "4.6", false],
+                ["Cold Coffee", "₹90", "4.7", true],
+              ].map(([n, p, r, added]) => (
+                <div key={n as string} className="mt-2.5 flex items-center gap-2.5 rounded-xl border border-line bg-white p-2">
+                  <div className="size-10 shrink-0 rounded-lg bg-[linear-gradient(135deg,#e9c48a,#b9772f)]" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[12px] font-semibold">{n}</p>
+                    <p className="text-[11px] text-muted">
+                      {p} · <span className="text-amber-deep">★ {r}</span>
+                    </p>
+                  </div>
+                  <span className={`rounded-md px-2 py-1 text-[10px] font-bold ${added ? "bg-ink text-ivory" : "border border-ink"}`}>{added ? "1" : "ADD"}</span>
+                </div>
+              ))}
+              <div className="mt-3 flex items-center justify-between rounded-xl bg-navy px-3 py-2.5 text-ivory">
+                <span className="text-[12px]">3 items · ₹360</span>
+                <span className="rounded-md bg-amber px-2 py-1 text-[11px] font-bold text-ink">Place order</span>
+              </div>
+            </div>
+
+            <div className="relative -mt-24 w-[70%] rounded-2xl border border-white/10 bg-navy-2 p-3.5 shadow-2xl md:-mt-28">
+              <div className="flex items-center justify-between text-[11px] text-slate">
+                <span className="inline-flex items-center gap-1.5">
+                  <BellRing className="size-3.5 text-amber" /> Kitchen
+                </span>
+                <span>Preview</span>
+              </div>
+              <div className="mt-2.5 rounded-xl bg-paper p-3 text-ink">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted">Order #104</p>
-                    <p className="mt-1 text-4xl font-bold">Seat 2</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">Order #104</p>
+                    <p className="text-2xl font-bold leading-tight">Seat 2</p>
                   </div>
-                  <span className="rounded-md bg-amber px-2 py-1 text-xs font-bold text-ink">NEW</span>
+                  <span className="rounded bg-amber px-1.5 py-0.5 text-[10px] font-bold">NEW</span>
                 </div>
-                <ul className="mt-4 space-y-2 border-t border-line pt-3 text-[15px]">
-                  <li className="flex justify-between">
-                    <span>Chicken Biryani</span>
-                    <span className="font-bold">× 1</span>
-                  </li>
-                  <li className="flex justify-between">
-                    <span>Cold Coffee</span>
-                    <span className="font-bold">× 2</span>
-                  </li>
-                </ul>
-                <div className="mt-4 grid grid-cols-2 gap-2">
-                  <span className="rounded-lg bg-navy py-2.5 text-center text-sm font-semibold text-ivory">Accept</span>
-                  <span className="rounded-lg border border-line py-2.5 text-center text-sm font-semibold">Repeat voice</span>
-                </div>
+                <p className="mt-2 border-t border-line pt-2 text-[12px]">Chicken Biryani × 1 · Cold Coffee × 2</p>
               </div>
-              <p className="mt-4 rounded-lg border border-white/10 px-3 py-2.5 text-sm text-ivory/80">
-                <Volume2 className="mr-1.5 inline size-4 text-amber" />
-                “New order 104. Seat 2. One chicken biryani, two cold coffee.”
+              <p className="mt-2.5 text-[12px] text-ivory/80">
+                <Volume2 className="mr-1 inline size-3.5 text-amber" />
+                “New order. Seat number 2 …”
               </p>
             </div>
           </div>
@@ -145,12 +164,25 @@ export default function Home() {
         </div>
       </section>
 
+      <section id="plans" className="scroll-mt-20 border-t border-line bg-ivory">
+        <div className="mx-auto max-w-6xl px-4 py-20">
+          <div className="mb-10 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+            <div>
+              <h2 className="display text-3xl font-semibold">Plans</h2>
+              <p className="mt-2 text-muted">Every plan includes everything. Start free for {TRIAL_DAYS} days, pay only if you keep it.</p>
+            </div>
+            <p className="text-sm text-muted">No commission on food orders · No card for the trial</p>
+          </div>
+          <PlanGrid />
+        </div>
+      </section>
+
       <section className="bg-navy text-ivory">
         <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 px-4 py-14 md:flex-row md:items-center">
           <div>
-            <h2 className="display text-3xl font-semibold">₹{PLAN_PRICE_INR} a month per restaurant</h2>
+            <h2 className="display text-3xl font-semibold">Set up tonight, take orders tomorrow</h2>
             <p className="mt-2 text-ivory/70">
-              Everything included. {TRIAL_DAYS}-day free trial. No commission on food orders.
+              From ₹{PLAN_PRICE_INR} a month, or ₹899 for 3 months and ₹1,499 for 6 months. {TRIAL_DAYS} days free.
             </p>
           </div>
           <ButtonLink href="/register" size="lg">

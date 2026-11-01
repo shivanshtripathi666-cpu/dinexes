@@ -1,18 +1,35 @@
 "use client";
 import { createUserWithEmailAndPassword, sendEmailVerification, updateProfile } from "firebase/auth";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 import { PasswordHint, PasswordInput, passwordProblem } from "@/components/password-input";
 import { useSession } from "@/components/session";
 import { Alert, Button, Field, Input, Spinner } from "@/components/ui";
 import { api, errorText } from "@/lib/api";
-import { PLAN_PRICE_INR, TRIAL_DAYS } from "@/lib/config";
+import { PLAN_PRICE_INR, TRIAL_DAYS, planById } from "@/lib/config";
 import { fb } from "@/lib/firebase/client";
 import { homeFor } from "@/lib/landing";
 
 export default function RegisterPage() {
+  return (
+    <Suspense>
+      <Register />
+    </Suspense>
+  );
+}
+
+function Register() {
   const router = useRouter();
+  const chosen = planById(useSearchParams().get("plan") || "");
+  useEffect(() => {
+    if (!chosen) return;
+    try {
+      localStorage.setItem("dx-plan", chosen.id);
+    } catch {
+      /* ignore */
+    }
+  }, [chosen]);
   const { user, me, loading, refresh } = useSession();
   const [form, setForm] = useState({ ownerName: "", email: "", password: "", name: "", phone: "", city: "" });
   const [busy, setBusy] = useState(false);
@@ -65,7 +82,9 @@ export default function RegisterPage() {
       <h1 className="display text-3xl font-semibold">Register your restaurant</h1>
       <p className="mt-1 text-sm font-medium text-amber-deep">For restaurant owners only. Staff are added by the owner after sign-up.</p>
       <p className="mt-2 text-muted">
-        {TRIAL_DAYS} days free, then ₹{PLAN_PRICE_INR} a month. No card needed now.
+        {chosen
+          ? `${TRIAL_DAYS} days free, then ${chosen.label} for ₹${chosen.priceInr.toLocaleString("en-IN")} if you continue. No card needed now.`
+          : `${TRIAL_DAYS} days free, then from ₹${PLAN_PRICE_INR} a month. No card needed now.`}
       </p>
       {accountExists && (
         <Alert tone="info" className="mt-5">
