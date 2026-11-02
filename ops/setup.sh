@@ -183,6 +183,7 @@ gcloud projects remove-iam-policy-binding "$P" --member="serviceAccount:$BUILD_S
 ok "permissions set"
 
 say "9/9 Building and deploying the website (5-10 minutes)"
+[ -f "$HOME/.dinexes-authdomain" ] && AUTH_DOMAIN=$(cat "$HOME/.dinexes-authdomain")
 ENV="FIREBASE_PROJECT_ID=$P,FIREBASE_WEB_API_KEY=$API_KEY,FIREBASE_AUTH_DOMAIN=${AUTH_DOMAIN:-$P.firebaseapp.com},FIREBASE_STORAGE_BUCKET=$BUCKET,FIREBASE_MESSAGING_SENDER_ID=$SENDER,FIREBASE_APP_ID=$APP_ID,ANDROID_APP_ID=${ANDROID_ID:-},GOOGLE_WEB_CLIENT_ID=${WEB_CLIENT_ID:-}"
 gcloud run deploy "$SERVICE" --source . --region "$REGION" --allow-unauthenticated --quiet \
   --memory 512Mi --cpu 1 --min-instances 0 --max-instances 3 --service-account "$RUN_SA" --update-env-vars "$ENV" || die "Deploy failed. Run this again; if it fails twice, send me a screenshot."
@@ -191,13 +192,19 @@ gcloud run services add-iam-policy-binding "$SERVICE" --region "$REGION" --membe
   || gcloud run services update "$SERVICE" --region "$REGION" --no-invoker-iam-check --quiet >/dev/null 2>&1 \
   || die "Could not make the website public."
 URL=$(gcloud run services describe "$SERVICE" --region "$REGION" --format='value(status.url)')
-gcloud run services update "$SERVICE" --region "$REGION" --update-env-vars "PLATFORM_URL=$URL" --quiet >/dev/null || die "Could not set the website address."
+# Own domain connected with ops/domain.sh: keep using it as the website address.
+SITE_URL="$URL"
+[ -f "$HOME/.dinexes-domain" ] && SITE_URL="https://$(cat "$HOME/.dinexes-domain")"
+gcloud run services update "$SERVICE" --region "$REGION" --update-env-vars "PLATFORM_URL=$SITE_URL" --quiet >/dev/null || die "Could not set the website address."
 HOST=${URL#https://}
 DOMAINS=$(api GET "$IDT/admin/v2/projects/$P/config" | python3 -c "
 import sys,json; d=json.load(sys.stdin).get('authorizedDomains',[]); h=sys.argv[1]
 print(json.dumps({'authorizedDomains': d + ([h] if h not in d else [])}))" "$HOST")
 api PATCH "$IDT/admin/v2/projects/$P/config?updateMask=authorizedDomains" "$DOMAINS" >/dev/null
 
-printf '\n\033[1;32mDinexes is live:\033[0m %s\n' "$URL"
+printf '\n\033[1;32mDinexes is live:\033[0m %s\n' "$SITE_URL"
+if [ -z "$WEB_CLIENT_ID" ]; then
+  printf '\033[33mGoogle sign-in is still off\033[0m (see the note in step 6/9).\n'
+fi
 printf 'Project: %s   (saved in %s)\n' "$P" "$STATE_FILE"
 printf 'Open the address on your phone, tap "Start free trial" and register your restaurant.\n'

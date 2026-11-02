@@ -205,3 +205,16 @@ The domain is never hard-coded: everything reads `PLATFORM_URL` / `PLATFORM_DOMA
 - Email verification is sent but not required to use the dashboard.
 - Reports count sales when an order is placed (cancelled orders are subtracted); "Collected" counts what the counter marked paid.
 - Day boundaries use India time (Asia/Kolkata).
+
+## Your own domain
+
+Connect a domain you own (free SSL, through Firebase Hosting in front of Cloud Run):
+
+```
+bash ops/domain.sh yourdomain.com
+```
+
+It prints the DNS records to add at your domain company. Run the same command again once they are live
+(1 to 24 hours). After that `ops/setup.sh` keeps the domain as the website address. For Google sign-in on the
+domain itself, add `https://yourdomain.com/__/auth/handler` to the OAuth web client's redirect URIs and run
+`bash ops/domain.sh yourdomain.com google`.

@@ -61,6 +61,13 @@ export function errorText(e: unknown): string {
     "auth/too-many-requests": "Too many attempts. Please wait a minute and try again.",
     "auth/network-request-failed": "No internet connection. Please check and try again.",
     "permission-denied": "You do not have access to this.",
+    "auth/operation-not-allowed": "Google sign-in is not switched on yet. Please use email and password for now.",
+    "auth/configuration-not-found": "Google sign-in is not switched on yet. Please use email and password for now.",
+    "auth/unauthorized-domain": "Google sign-in is not allowed on this web address yet. Please use email and password for now.",
+    "auth/web-storage-unsupported": "This browser blocks sign-in. Please open the page in Chrome.",
+    "auth/account-exists-with-different-credential": "This email already has a password login. Sign in with email and password.",
+    "auth/user-disabled": "This login has been turned off. Please contact the restaurant owner.",
+    "auth/internal-error": "Google sign-in could not finish. Please try again, or use email and password.",
   };
   return map[code] || (e instanceof Error && e.message) || "Something went wrong.";
 }

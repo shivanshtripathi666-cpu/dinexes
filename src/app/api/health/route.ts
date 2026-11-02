@@ -25,6 +25,8 @@ export async function GET() {
     logins,
     photos,
     payments: env.razorpay.keyId ? "connected" : "not connected",
+    googleSignIn: env.android.webClientId ? "on" : "off (Firebase > Authentication > Sign-in method > Google)",
+    address: env.platformUrl || "not set",
   };
   const healthy = database === "ok" && logins === "ok" && body.webConfig === "ok";
   return Response.json(body, { status: healthy ? 200 : 503, headers: { "Cache-Control": "no-store" } });

@@ -6,7 +6,36 @@ import { fb } from "./firebase/client";
  * "Continue with Google". Uses a pop-up, and falls back to a full-page redirect where pop-ups are
  * blocked. Returns true when signed in now; false if the user closed the window or a redirect started.
  */
+/**
+ * Google blocks its sign-in inside app browsers (WhatsApp, Instagram, Facebook, Telegram, Snapchat,
+ * LinkedIn...). There the page is reopened in Chrome (Android), or the user is told what to do (iPhone).
+ */
+export function inAppBrowser(): "android" | "ios" | null {
+  if (typeof navigator === "undefined") return null;
+  const ua = navigator.userAgent;
+  if (ua.includes("DinexesApp")) return null;
+  const inApp = /WhatsApp|Instagram|FBAN|FBAV|FB_IAB|FBIOS|Line\/|Snapchat|LinkedInApp|Telegram|TwitterAndroid|MicroMessenger|; wv\)/i.test(ua);
+  if (!inApp) return null;
+  return /iPhone|iPad|iPod/.test(ua) ? "ios" : "android";
+}
+
+/** Opens the current page in Chrome (Android). */
+export function openInChrome() {
+  const { host, pathname, search, hash } = window.location;
+  window.location.href = `intent://${host}${pathname}${search}${hash}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(window.location.href)};end`;
+}
+
 export async function googleSignIn(): Promise<boolean> {
+  const inApp = inAppBrowser();
+  if (inApp === "android") {
+    openInChrome();
+    return false;
+  }
+  if (inApp === "ios") {
+    throw Object.assign(new Error("Google sign-in does not work inside this app. Tap the ••• or share button and choose \"Open in Safari\", then try again."), {
+      code: "dx/in-app-browser",
+    });
+  }
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
   try {
