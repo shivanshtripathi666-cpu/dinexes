@@ -11,7 +11,7 @@ export const DEFAULT_HOURS: Hours[] = DAYS.map((day) => ({ day, open: "10:00", c
 
 /**
  * Creates the one restaurant workspace for a new owner: restaurant, owner membership, unique slug,
- * 7-day trial. A user can belong to only one restaurant.
+ * 30-day trial. A user can belong to only one restaurant.
  */
 export async function createRestaurant(user: SignedInUser, input: { name: string; ownerName: string; phone: string; city: string }) {
   if (!user.emailVerified && !user.phone) throw new HttpError(403, "Please verify your email first. Open the link we sent to your inbox.", "unverified");

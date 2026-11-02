@@ -83,7 +83,7 @@ export const LOWEST_MONTHLY_INR = Math.min(...PLANS.map((p) => planPerMonth(p)))
 
 /** Shown on the legal and contact pages. Set SUPPORT_EMAIL on the server to change it. */
 export const DEFAULT_SUPPORT_EMAIL = "shivanshtripathi666@gmail.com";
-export const TRIAL_DAYS = 7;
+export const TRIAL_DAYS = 30;
 export const MAX_STAFF = 4;
 export const MAX_SEATS = 300;
 export const TIME_ZONE = "Asia/Kolkata";

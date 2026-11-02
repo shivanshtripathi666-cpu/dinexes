@@ -74,7 +74,7 @@ export async function register(page: Page, o: { name: string; email: string; pas
   await page.getByLabel("Restaurant name").fill(o.restaurant);
   await page.getByLabel("Phone").fill(o.phone);
   await page.getByLabel("City").fill(o.city);
-  await page.getByRole("button", { name: /Start 7-day free trial/ }).click();
+  await page.getByRole("button", { name: /Start 30-day free trial/ }).click();
   await page.waitForURL("**/onboarding");
 }
 

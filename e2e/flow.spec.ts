@@ -390,7 +390,7 @@ test("15-16. trial status and the Pro and Premium plans", async ({ page }) => {
   const p = ownerPage;
   await p.goto("/dashboard/billing");
   await expect(p.getByTestId("billing-status")).toHaveText("Free trial");
-  await expect(p.getByTestId("billing-detail")).toContainText("7 days left");
+  await expect(p.getByTestId("billing-detail")).toContainText("30 days left");
   await expect(p.getByTestId("billing-price")).toHaveText("₹349");
   await expect(p.getByTestId("plan-prem3")).toContainText("₹799");
   await expect(p.getByTestId("plan-prem6")).toContainText("₹1,299");

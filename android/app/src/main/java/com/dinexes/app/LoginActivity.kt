@@ -114,7 +114,7 @@ class LoginActivity : AppCompatActivity() {
             setOnClickListener { resetPassword(email.text.toString().trim()) }
         }
         body.add(forgot)
-        val register = Ui.text(this, "New restaurant? Use “Continue with Google” or your phone number above, then add your restaurant. You get 7 days free.", 13f, Ui.MUTED)
+        val register = Ui.text(this, "New restaurant? Use “Continue with Google” or your phone number above, then add your restaurant. You get 30 days free.", 13f, Ui.MUTED)
         body.add(register, 14)
 
         fun show() {

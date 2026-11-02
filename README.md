@@ -3,11 +3,11 @@
 QR dine-in ordering for restaurants. Guests scan the QR code on their seat, order from their phone
 browser (no app, no login), the kitchen phone chimes and reads the order aloud, the counter sees it
 live, and the owner manages menu, seats, staff, trial and billing. ₹399 per restaurant per month,
-7-day free trial, up to 4 staff logins, no commission.
+30-day free trial, up to 4 staff logins, no commission.
 
 > **हिंदी में सार:** ग्राहक सीट का QR स्कैन करके फ़ोन से ऑर्डर करता है। किचन फ़ोन पर आवाज़ में
 > ऑर्डर सुनाई देता है, काउंटर पर लाइव दिखता है। मालिक मेन्यू, सीट, स्टाफ़ (अधिकतम 4) और बिलिंग
-> संभालता है। ₹399 / महीना, 7 दिन फ़्री ट्रायल। नीचे सेटअप के कदम हैं।
+> संभालता है। ₹399 / महीना, 30 दिन फ़्री ट्रायल। नीचे सेटअप के कदम हैं।
 
 ---
 
@@ -26,7 +26,7 @@ live, and the owner manages menu, seats, staff, trial and billing. ₹399 per re
 | Counter screen: live, filters, ready list, served, paid cash/UPI, cancel | Done |
 | Owner overview and reports from real data (daily sales, best sellers, CSV) | Done |
 | Staff: 4 logins per restaurant including the owner, roles, revoke | Done |
-| 7-day trial, expiry blocks new orders, billing page, payment history | Done |
+| 30-day trial, expiry blocks new orders, billing page, payment history | Done |
 | Online payment of the ₹399 plan (Razorpay) | Code done; switched off until you add keys |
 | Restaurant sub-domains and custom domains | Prepared (middleware + `domains` collection); off until you set a domain |
 | Restaurant discovery, delivery, online payment for food | Not in this version (by design) |
@@ -151,23 +151,19 @@ refused, role limits, revoking a login, trial and expiry, the ₹399 plan, and p
 
 ---
 
-## Connect payments (Razorpay) for the ₹399 plan
+## Connect payments (Razorpay)
 
-1. Razorpay Dashboard → **Account & Settings → API Keys → Generate** (start in Test mode).
-2. Store the secret in Secret Manager and give it to Cloud Run:
+1. Razorpay Dashboard → **Account & Settings → API Keys → Generate Key** (start in Test mode).
+2. In Cloud Shell, from the dinexes folder:
    ```bash
-   read -s -p "Razorpay key secret: " S; echo
-   printf %s "$S" | gcloud secrets create razorpay-key-secret --data-file=-; unset S
-   gcloud run services update dinexes --region asia-south1 \
-     --update-env-vars RAZORPAY_KEY_ID=rzp_test_xxx --update-secrets RAZORPAY_KEY_SECRET=razorpay-key-secret:latest
+   bash ops/razorpay.sh
    ```
-3. Webhook (so a payment is credited even if the owner closes the page): Razorpay Dashboard → **Webhooks → Add** →
-   URL `<PLATFORM_URL>/api/billing/webhook`, event **order.paid**, choose a secret, then
-   `gcloud run services update dinexes --region asia-south1 --update-env-vars RAZORPAY_WEBHOOK_SECRET=<that secret>`.
-4. Billing page now shows the plans (1 month ₹399, 3 months ₹899, 6 months ₹1,499). Each payment adds 30 days, starting when the current trial or paid period ends.
-5. When ready, switch to Live keys the same way.
+   It asks for the Key ID and Key secret (the secret is typed hidden and stored in Secret Manager), then prints the webhook address.
+3. Razorpay Dashboard → **Settings → Webhooks → Add New Webhook**: paste the URL and secret the script printed, tick only **order.paid**.
+4. The Billing page shows Pro and Premium (1, 3 and 6 months). Each payment adds its months, starting when the current trial or paid period ends.
+5. When ready, run `bash ops/razorpay.sh` again with Live keys.
 
-Until both keys are set, the billing page clearly says payment is not connected, and nothing can be marked paid.
+Until the keys are set, the billing page clearly says payment is not connected, and nothing can be marked paid.
 Automatic monthly charging (Razorpay Subscriptions with mandates) is a later step; this version uses a pay-per-period checkout.
 
 ## Voice announcements and notifications
