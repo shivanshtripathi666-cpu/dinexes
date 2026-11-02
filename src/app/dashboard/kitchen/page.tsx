@@ -13,7 +13,7 @@ import { enablePush } from "@/lib/push-client";
 import { STATUS_LABEL, can, canTransition } from "@/lib/roles";
 import { ago, formatTime } from "@/lib/time";
 import type { Order } from "@/lib/types";
-import { announcementText, readyText, chime, hasVoiceFor, loadVoices, reminderText, speak, speechSupported, unlockAudio, type VoiceLang } from "@/lib/voice";
+import { announcementText, readyText, startKeepAlive, stopKeepAlive, waitingText, chime, hasVoiceFor, loadVoices, reminderText, speak, speechSupported, unlockAudio, type VoiceLang } from "@/lib/voice";
 
 interface Prefs {
   voice: boolean;
@@ -22,6 +22,8 @@ interface Prefs {
   remind: boolean;
   /** Call out parcel and stall orders by name when they are marked ready. */
   callReady: boolean;
+  /** Keep the page running when the phone switches to another app (quiet sound + media notification). */
+  background: boolean;
 }
 
 interface Announcement {
@@ -43,7 +45,7 @@ function Kitchen() {
   const orders = useOrdersSince(d.rid, since);
   const act = useOrderAction();
   const [started, setStarted] = useState(false);
-  const [prefs, setPrefs] = useState<Prefs>({ voice: true, volume: 1, lang: d.restaurant.settings.voiceLang, remind: true, callReady: true });
+  const [prefs, setPrefs] = useState<Prefs>({ voice: true, volume: 1, lang: d.restaurant.settings.voiceLang, remind: true, callReady: true, background: true });
   const [history, setHistory] = useState<Announcement[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [flash, setFlash] = useState<Order | null>(null);
@@ -148,6 +150,25 @@ function Kitchen() {
     return () => clearInterval(t);
   }, [started, prefs.remind, announce]);
 
+  // Background mode while kitchen mode runs.
+  useEffect(() => {
+    if (!started || !prefs.background) return;
+    startKeepAlive();
+    return () => stopKeepAlive();
+  }, [started, prefs.background]);
+
+  // After kitchen mode starts (or comes back after a reload), speak the orders that arrived meanwhile.
+  const caughtUp = useRef(false);
+  useEffect(() => {
+    if (!started || orders.loading || caughtUp.current) return;
+    caughtUp.current = true;
+    const spoken = new Set(history.filter((h) => h.ok).map((h) => h.orderId));
+    const missed = orders.data.filter((o) => o.status === "new" && !spoken.has(o.id)).sort((a, b) => a.createdAt - b.createdAt);
+    if (!missed.length) return;
+    if (missed.length > 1) announce(waitingText(missed.length, prefsRef.current.lang), "");
+    for (const o of missed.slice(0, 10)) announce(announcementText(o, prefsRef.current.lang), o.id);
+  }, [started, orders.loading, orders.data, history, announce]);
+
   // Keep the screen on while kitchen mode runs.
   useEffect(() => {
     if (!started || !("wakeLock" in navigator)) return;
@@ -180,6 +201,8 @@ function Kitchen() {
 
   function stop() {
     setStarted(false);
+    caughtUp.current = false;
+    stopKeepAlive();
     save("dx-kitchen-on", false);
   }
 
@@ -227,6 +250,10 @@ function Kitchen() {
             className="w-24 accent-[#d29b3a]"
           />
         </label>
+        <label className="flex items-center gap-2 text-sm font-medium" title="Keep speaking orders when you switch to another app (works on most Android phones)">
+          Background
+          <Toggle label="Keep listening in the background" checked={prefs.background} onChange={(v) => setPrefs({ ...prefs, background: v })} />
+        </label>
         <label className="flex items-center gap-2 text-sm font-medium" title="Parcel and stall orders: say the guest's name when the order is marked ready">
           Call names
           <Toggle label="Call out names when ready" checked={prefs.callReady} onChange={(v) => setPrefs({ ...prefs, callReady: v })} />
@@ -258,8 +285,9 @@ function Kitchen() {
         <div className="mb-6 rounded-2xl border border-amber/50 bg-amber-soft p-5">
           <p className="font-semibold">Start kitchen mode to hear new orders</p>
           <p className="mt-1 text-sm text-muted">
-            Phones block sound until you tap the screen once. Kitchen mode turns on the chime and voice, asks for notification permission, and keeps
-            the screen awake. Keep this page open on the kitchen phone, plugged in.
+            One tap turns on the chime and voice, order alerts and keeps the screen awake. Best: keep this page open on the kitchen phone, plugged
+            in. If you switch to another app it keeps listening on most Android phones, and if Chrome is closed every order still rings as a
+            notification. Tap the notification and the waiting orders are read out.
           </p>
           <Button size="lg" className="mt-4" onClick={start} data-testid="start-kitchen">
             <BellRing className="size-4" /> Start kitchen mode

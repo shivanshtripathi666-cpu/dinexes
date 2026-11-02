@@ -173,3 +173,76 @@ export function speak(text: string, opts: { lang: VoiceLang; volume: number; rat
     window.speechSynthesis.speak(u);
   });
 }
+
+/**
+ * Background mode: a very quiet looping sound (about -60 dB, not heard in a kitchen) plus a media
+ * notification. On many Android phones Chrome then keeps the kitchen page running when you switch
+ * to another app, so new orders can still be spoken. Phones may still stop it to save battery;
+ * the order notification is the back-up. Must be started from a tap.
+ */
+let keepAlive: HTMLAudioElement | null = null;
+let keepAliveUrl = "";
+
+function quietWav(seconds = 2, rate = 8000): Blob {
+  const n = seconds * rate;
+  const buf = new ArrayBuffer(44 + n * 2);
+  const v = new DataView(buf);
+  const w = (o: number, str: string) => [...str].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  w(0, "RIFF");
+  v.setUint32(4, 36 + n * 2, true);
+  w(8, "WAVE");
+  w(12, "fmt ");
+  v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true);
+  v.setUint16(22, 1, true);
+  v.setUint32(24, rate, true);
+  v.setUint32(28, rate * 2, true);
+  v.setUint16(32, 2, true);
+  v.setUint16(34, 16, true);
+  w(36, "data");
+  v.setUint32(40, n * 2, true);
+  let seed = 7;
+  for (let i = 0; i < n; i++) {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    v.setInt16(44 + i * 2, ((seed % 65) - 32) | 0, true);
+  }
+  return new Blob([buf], { type: "audio/wav" });
+}
+
+export function startKeepAlive(title = "Dinexes kitchen is listening") {
+  try {
+    if (!keepAlive) {
+      keepAliveUrl = URL.createObjectURL(quietWav());
+      keepAlive = new Audio(keepAliveUrl);
+      keepAlive.loop = true;
+      keepAlive.setAttribute("playsinline", "");
+    }
+    void keepAlive.play().catch(() => undefined);
+    if ("mediaSession" in navigator) {
+      navigator.mediaSession.metadata = new MediaMetadata({ title, artist: "New orders are announced", artwork: [{ src: "/icon-192.png", sizes: "192x192", type: "image/png" }] });
+      navigator.mediaSession.setActionHandler("pause", () => undefined);
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function stopKeepAlive() {
+  try {
+    keepAlive?.pause();
+    if (keepAliveUrl) URL.revokeObjectURL(keepAliveUrl);
+  } catch {
+    /* ignore */
+  }
+  keepAlive = null;
+  keepAliveUrl = "";
+  if (typeof navigator !== "undefined" && "mediaSession" in navigator) navigator.mediaSession.metadata = null;
+}
+
+/** Spoken once kitchen mode starts again, when orders arrived while the page was closed. */
+export function waitingText(count: number, lang: VoiceLang) {
+  if (lang === "hi" && !hindiVoiceReady()) return `${count} order pehle se intezaar kar rahe hain.`;
+  if (lang === "hi") return `${count} ऑर्डर पहले से इंतज़ार कर रहे हैं।`;
+  return `${count} ${count === 1 ? "order is" : "orders are"} already waiting.`;
+}

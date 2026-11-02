@@ -12,8 +12,9 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: { default: `${APP_NAME} · QR ordering for restaurants`, template: `%s · ${APP_NAME}` },
-  description: "Customers scan the QR code on their seat and order from their phone. Your kitchen hears every order. ₹399 a month.",
-  icons: { icon: "/icon.svg" },
+  description: "QR ordering for restaurants, parcel counters and tea stalls. Guests order from their phone and your kitchen hears every order. From ₹150 a month.",
+  icons: { icon: "/icon.svg", apple: "/apple-touch-icon.png" },
+  appleWebApp: { capable: true, title: APP_NAME, statusBarStyle: "black-translucent" },
 };
 
 export const viewport: Viewport = {
@@ -27,7 +28,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${manrope.variable} ${fraunces.variable}`}>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: `window.__DX=${config};` }} />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.__DX=${config};window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();window.__dxInstall=e;});`,
+          }}
+        />
       </head>
       <body className="min-h-dvh antialiased">
         <SessionProvider>{children}</SessionProvider>

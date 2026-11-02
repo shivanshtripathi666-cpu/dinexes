@@ -177,7 +177,7 @@ export function cleanName(raw: string): string {
 export async function updateStatus(m: MemberContext, oid: string, to: OrderStatus) {
   const f = db();
   const ref = f.doc(`restaurants/${m.rid}/orders/${oid}`);
-  await f.runTransaction(async (tx) => {
+  return f.runTransaction(async (tx) => {
     const o = await tx.get(ref);
     if (!o.exists) throw new HttpError(404, "Order not found.");
     const from = o.get("status") as OrderStatus;
@@ -207,6 +207,12 @@ export async function updateStatus(m: MemberContext, oid: string, to: OrderStatu
       tx.set(f.doc(`restaurants/${m.rid}/days/${day}`), back, { merge: true });
       if (o.get("paymentStatus") === "paid") tx.update(ref, { paymentStatus: "unpaid", paymentMethod: "" });
     }
+    return {
+      number: o.get("number") as number,
+      seatLabel: (o.get("seatLabel") as string) || "",
+      kind: kindOf(o.get("kind")),
+      customerName: (o.get("customerName") as string) || "",
+    };
   });
 }
 

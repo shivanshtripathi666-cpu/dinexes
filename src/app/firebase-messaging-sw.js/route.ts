@@ -11,7 +11,8 @@ firebase.initializeApp(${JSON.stringify(c.firebase)});
 const messaging = firebase.messaging();
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = new URL("/dashboard/kitchen", self.location.origin).href;
+  const tag = event.notification.tag || "";
+  const url = new URL(tag.startsWith("ready-") ? "/dashboard/counter" : "/dashboard/kitchen", self.location.origin).href;
   event.waitUntil(clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
     for (const c of list) { if (c.url.startsWith(url) && "focus" in c) return c.focus(); }
     return clients.openWindow(url);

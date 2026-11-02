@@ -1,4 +1,5 @@
 "use client";
+import { AlertsBar } from "./alerts-bar";
 import { BarChart3, ChefHat, CreditCard, Ellipsis, LayoutDashboard, LogOut, Menu as MenuIcon, QrCode, Receipt, Settings, Users, UtensilsCrossed, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -140,6 +141,7 @@ export function DashShell({ children }: { children: React.ReactNode }) {
               )}
             </Alert>
           )}
+          <AlertsBar />
           {children}
         </main>
 

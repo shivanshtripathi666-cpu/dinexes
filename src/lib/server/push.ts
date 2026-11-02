@@ -40,7 +40,8 @@ export async function notifyNewOrder(
             renotify: true,
             requireInteraction: true,
             vibrate: [400, 150, 400, 150, 400],
-            icon: `${env.platformUrl}/icon.svg`,
+            icon: `${env.platformUrl}/icon-192.png`,
+            badge: `${env.platformUrl}/icon-192.png`,
           },
           fcmOptions: { link: `${env.platformUrl}/dashboard/kitchen` },
         },
@@ -70,3 +71,55 @@ export async function notifyNewOrder(
   }
 }
 
+
+/** A test notification to one device, so staff can check that alerts ring with the website closed. */
+export async function sendTestAlert(token: string) {
+  if (!pushConfigured()) return false;
+  await messaging().send({
+    token,
+    webpush: {
+      headers: { Urgency: "high", TTL: "120" },
+      notification: {
+        title: "Dinexes test alert",
+        body: "Order alerts work on this phone. New orders will ring like this.",
+        tag: "dx-test",
+        renotify: true,
+        vibrate: [400, 150, 400],
+        icon: `${env.platformUrl}/icon-192.png`,
+        badge: `${env.platformUrl}/icon-192.png`,
+      },
+      fcmOptions: { link: `${env.platformUrl}/dashboard/kitchen` },
+    },
+  });
+  return true;
+}
+
+/**
+ * When the kitchen marks an order ready: tell the counter, waiters and owner (not the kitchen itself).
+ * "Ready: Shivansh · Counter 1" or "Ready: Seat 4".
+ */
+export async function notifyReady(rid: string, o: { number: number; seatLabel: string; kind?: QrKind; customerName?: string }) {
+  if (!pushConfigured()) return;
+  try {
+    const snap = await db().collection(`restaurants/${rid}/pushTokens`).limit(100).get();
+    const web = snap.docs.filter((d) => d.get("platform") !== "android" && d.get("role") !== "kitchen").map((d) => d.get("token") as string);
+    if (!web.length) return;
+    await messaging().sendEachForMulticast({
+      tokens: web,
+      webpush: {
+        headers: { Urgency: "high", TTL: "600" },
+        notification: {
+          title: `Ready: ${orderWho(o)}`,
+          body: o.kind && o.kind !== "dine" ? `Order #${o.number} is ready to collect.` : `Order #${o.number} is ready to serve.`,
+          tag: `ready-${o.number}`,
+          renotify: true,
+          vibrate: [300, 120, 300],
+          icon: `${env.platformUrl}/icon-192.png`,
+        },
+        fcmOptions: { link: `${env.platformUrl}/dashboard/counter` },
+      },
+    });
+  } catch (e) {
+    console.error("ready push failed", e);
+  }
+}
