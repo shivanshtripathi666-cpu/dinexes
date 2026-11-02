@@ -99,7 +99,8 @@ export function SeatsManager({ rid, restaurantName }: { rid: string; restaurantN
   // Tabs: the kinds in the plan, plus any kind that still has codes from an earlier plan.
   const tabs = QR_KINDS.filter((k) => allowed.includes(k) || seats.data.some((s) => s.kind === k));
   const [tab, setTab] = useState<QrKind | null>(null);
-  const current: QrKind = tab && tabs.includes(tab) ? tab : tabs[0] || "counter";
+  // Open on the first type the plan includes; paused types stay one tap away.
+  const current: QrKind = tab && tabs.includes(tab) ? tab : tabs.find((k) => allowed.includes(k)) || tabs[0] || "counter";
   const inPlan = allowed.includes(current);
   const list = seats.data.filter((s) => s.kind === current);
   const locked = QR_KINDS.filter((k) => !allowed.includes(k));
