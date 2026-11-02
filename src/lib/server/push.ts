@@ -1,4 +1,6 @@
 import "server-only";
+import type { QrKind } from "@/lib/config";
+import { orderWho } from "@/lib/order-label";
 import { db, messaging } from "./firebaseAdmin";
 import { env, pushConfigured } from "./env";
 
@@ -11,8 +13,9 @@ import { env, pushConfigured } from "./env";
  */
 export async function notifyNewOrder(
   rid: string,
-  o: { id?: string; number: number; seatNumber?: number; seatLabel: string; lines: { name: string; qty: number }[] },
+  o: { id?: string; number: number; seatNumber?: number; seatLabel: string; kind?: QrKind; customerName?: string; lines: { name: string; qty: number }[] },
 ) {
+  const who = orderWho(o);
   if (!pushConfigured()) return;
   try {
     const snap = await db().collection(`restaurants/${rid}/pushTokens`).limit(100).get();
@@ -31,7 +34,7 @@ export async function notifyNewOrder(
         webpush: {
           headers: { Urgency: "high", TTL: "600" },
           notification: {
-            title: `New order #${o.number} · ${o.seatLabel}`,
+            title: `New order #${o.number} · ${who}`,
             body,
             tag: `order-${o.number}`,
             renotify: true,
@@ -54,6 +57,8 @@ export async function notifyNewOrder(
           number: String(o.number),
           seatNumber: String(o.seatNumber ?? ""),
           seatLabel: o.seatLabel,
+          kind: o.kind || "dine",
+          customerName: o.customerName || "",
           items: JSON.stringify(o.lines.map((l) => ({ name: l.name, qty: l.qty }))).slice(0, 3000),
         },
       });
@@ -64,3 +69,4 @@ export async function notifyNewOrder(
     console.error("push failed", e);
   }
 }
+

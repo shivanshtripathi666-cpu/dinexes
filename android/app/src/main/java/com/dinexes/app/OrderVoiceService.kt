@@ -100,14 +100,23 @@ class OrderVoiceService : Service() {
                 .orderBy("createdAt", Query.Direction.ASCENDING)
                 .addSnapshotListener { snap, _ ->
                     snap?.documentChanges?.forEach { ch ->
-                        if (ch.type != DocumentChange.Type.ADDED) return@forEach
                         val d = ch.document
-                        if (d.getString("status") != "new") return@forEach
-                        @Suppress("UNCHECKED_CAST")
-                        val items = (d.get("items") as? List<Map<String, Any>>).orEmpty().map {
-                            Line((it["name"] as? String).orEmpty(), (it["qty"] as? Number)?.toInt() ?: 1)
+                        val kind = d.getString("kind").orEmpty().ifBlank { "dine" }
+                        val name = d.getString("customerName").orEmpty()
+                        val number = d.getLong("number")?.toString().orEmpty()
+                        when {
+                            ch.type == DocumentChange.Type.ADDED && d.getString("status") == "new" -> {
+                                @Suppress("UNCHECKED_CAST")
+                                val items = (d.get("items") as? List<Map<String, Any>>).orEmpty().map {
+                                    Line((it["name"] as? String).orEmpty(), (it["qty"] as? Number)?.toInt() ?: 1)
+                                }
+                                announce(d.id, number, d.getLong("seatNumber")?.toString().orEmpty(), d.getString("seatLabel").orEmpty(), kind, name, items)
+                            }
+                            // Parcel and stall orders: call the guest's name once when the order is marked ready.
+                            ch.type == DocumentChange.Type.MODIFIED && d.getString("status") == "ready" && kind != "dine" -> {
+                                if (prefs.markSpoken("ready-" + d.id)) speaker?.let { sp -> sp.say(Words.ready(number, name, sp.modeFor(prefs.voiceLang))) }
+                            }
                         }
-                        announce(d.id, d.getLong("number")?.toString().orEmpty(), d.getLong("seatNumber")?.toString().orEmpty(), d.getString("seatLabel").orEmpty(), items)
                     }
                 }
         }
@@ -118,18 +127,26 @@ class OrderVoiceService : Service() {
             val o = org.json.JSONObject(json)
             val arr = JSONArray(o.optString("items", "[]"))
             val items = (0 until arr.length()).map { Line(arr.getJSONObject(it).optString("name"), arr.getJSONObject(it).optInt("qty", 1)) }
-            announce(o.optString("orderId"), o.optString("number"), o.optString("seatNumber"), o.optString("seatLabel"), items)
+            announce(
+                o.optString("orderId"), o.optString("number"), o.optString("seatNumber"), o.optString("seatLabel"),
+                o.optString("kind").ifBlank { "dine" }, o.optString("customerName"), items,
+            )
         } catch (e: Exception) {
             // Bad message: ignore. The live listener still announces the order.
         }
     }
 
-    private fun announce(id: String, number: String, seatNumber: String, seatLabel: String, items: List<Line>) {
+    private fun announce(id: String, number: String, seatNumber: String, seatLabel: String, kind: String, name: String, items: List<Line>) {
         if (id.isBlank() || !prefs.markSpoken(id)) return
         val sp = speaker ?: return
         val seat = seatNumber.ifBlank { seatLabel.filter { it.isDigit() } }
-        sp.say(Words.order(number, seat, items, sp.modeFor(prefs.voiceLang)))
-        Notify.newOrder(this, number, seatLabel.ifBlank { "Seat $seat" }, items.joinToString(", ") { "${it.qty} × ${it.name}" })
+        sp.say(Words.order(number, seat, kind, name, items, sp.modeFor(prefs.voiceLang)))
+        val who = when (kind) {
+            "takeaway" -> "Parcel · ${name.ifBlank { seatLabel }}"
+            "counter" -> if (name.isBlank()) seatLabel else "$name · $seatLabel"
+            else -> seatLabel.ifBlank { "Seat $seat" }
+        }
+        Notify.newOrder(this, number, who, items.joinToString(", ") { "${it.qty} × ${it.name}" })
     }
 
     override fun onDestroy() {

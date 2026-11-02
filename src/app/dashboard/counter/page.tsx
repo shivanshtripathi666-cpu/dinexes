@@ -1,4 +1,5 @@
 "use client";
+import { orderWho } from "@/lib/order-label";
 import { Receipt, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useDash } from "@/components/dash-context";
@@ -51,7 +52,14 @@ function Counter() {
     return [...orders.data]
       .reverse()
       .filter(f.match)
-      .filter((o) => !term || o.seatLabel.toLowerCase().includes(term) || String(o.number).includes(term) || String(o.seatNumber) === term);
+      .filter(
+        (o) =>
+          !term ||
+          o.seatLabel.toLowerCase().includes(term) ||
+          o.customerName.toLowerCase().includes(term) ||
+          String(o.number).includes(term) ||
+          String(o.seatNumber) === term,
+      );
   }, [orders.data, filter, q]);
 
   const ready = orders.data.filter((o) => o.status === "ready");
@@ -82,7 +90,7 @@ function Counter() {
           <div className="mt-2 flex flex-wrap gap-2">
             {ready.map((o) => (
               <span key={o.id} className="rounded-lg bg-white px-3 py-2 text-sm font-semibold">
-                #{o.number} · {o.seatLabel}
+                #{o.number} · {orderWho(o)}
               </span>
             ))}
           </div>
@@ -106,7 +114,7 @@ function Counter() {
         </div>
         <div className="relative sm:ml-auto sm:w-56">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Seat or order no." className="h-10 pl-9" aria-label="Search by seat or order number" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Seat, name or order no." className="h-10 pl-9" aria-label="Search by seat, name or order number" />
         </div>
       </div>
 
@@ -126,7 +134,8 @@ function Counter() {
             {list.map((o) => (
               <li key={o.id} className="grid gap-3 p-4 md:grid-cols-[150px_1fr_auto] md:items-center" data-testid={`counter-order-${o.number}`}>
                 <div>
-                  <p className="text-xl font-bold">{o.seatLabel}</p>
+                  <p className="break-words text-xl font-bold">{o.customerName || o.seatLabel}</p>
+                  {o.kind !== "dine" && <p className="text-xs font-semibold uppercase text-muted">{o.kind === "takeaway" ? "Parcel" : o.seatLabel}</p>}
                   <p className="text-xs text-muted">
                     #{o.number} · {formatTime(o.createdAt)}
                   </p>

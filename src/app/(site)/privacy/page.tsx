@@ -15,7 +15,11 @@ export default function Privacy() {
       </p>
       <h2>Guests who order</h2>
       <ul>
-        <li>Guests do not create an account and we do not ask for their name, phone number or email.</li>
+        <li>Guests do not create an account and we never ask for a phone number or email.</li>
+        <li>
+          For parcel and stall orders the guest types a first name, so the kitchen can call it when the order is ready. It is stored with that order
+          only and is visible to the restaurant&apos;s staff. The guest&apos;s phone remembers the name for the next order.
+        </li>
         <li>We store the order itself (dishes, quantities, instructions, seat, time) so the restaurant can prepare and bill it.</li>
         <li>If a guest rates dishes, we store the stars and the optional comment with the order number, not with any personal details.</li>
         <li>The guest&apos;s phone keeps the cart and a list of their recent orders in its own browser storage. This never leaves the phone.</li>

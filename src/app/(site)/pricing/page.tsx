@@ -1,14 +1,25 @@
 import { ArrowRight, ShieldCheck } from "lucide-react";
 import type { Metadata } from "next";
-import { PlanGrid } from "@/components/plans";
+import { PlanGrid, StaffSavings } from "@/components/plans";
 import { ButtonLink } from "@/components/ui";
-import { MAX_STAFF, PLAN_PRICE_INR, TRIAL_DAYS } from "@/lib/config";
+import { MAX_STAFF, TIERS, TRIAL_DAYS, planSaving, plansOf } from "@/lib/config";
+
+const pro6 = plansOf("pro")[2];
+const prem6 = plansOf("premium")[2];
 
 export const metadata: Metadata = { title: "Pricing" };
 
 const faqs = [
   { q: "What happens after the free trial?", a: `Your ${TRIAL_DAYS}-day trial starts when you register. After it ends, your dashboard stays open but guests cannot place new orders until you choose a plan.` },
-  { q: "Which plan should I choose?", a: "All plans include every feature. Longer plans simply cost less per month: 3 months for ₹899 and 6 months for ₹1,499." },
+  {
+    q: "Pro or Premium?",
+    a: `${TIERS.pro.name} is for stalls and quick counters: one QR, full menu, the guest writes a name and you hear it. ${TIERS.premium.name} adds a QR on every dining seat and a parcel QR, for restaurants with seating. You can switch any time.`,
+  },
+  {
+    q: "Why are longer plans cheaper?",
+    a: `You pay less per month when you pay for longer. 6 months of ${TIERS.pro.name} is ₹${pro6.priceInr.toLocaleString("en-IN")} instead of ₹${(pro6.months * TIERS.pro.monthlyInr).toLocaleString("en-IN")} (you save ₹${planSaving(pro6).toLocaleString("en-IN")}); 6 months of ${TIERS.premium.name} is ₹${prem6.priceInr.toLocaleString("en-IN")} instead of ₹${(prem6.months * TIERS.premium.monthlyInr).toLocaleString("en-IN")} (you save ₹${planSaving(prem6).toLocaleString("en-IN")}).`,
+  },
+  { q: "What does the free trial include?", a: `Everything in ${TIERS.premium.name}: dining, parcel and stall QR codes. Choose a plan when the ${TRIAL_DAYS} days are over.` },
   { q: "How do guests pay for food?", a: "At your counter, the way they do today. Your cashier marks each order as paid. There is no commission on your food orders." },
   { q: "Do I need special hardware?", a: "No. Any Android phone or tablet works for the kitchen and counter. Print the QR cards on paper." },
   { q: "How many staff can log in?", a: `${MAX_STAFF} logins per restaurant: you plus up to ${MAX_STAFF - 1} staff. You add them yourself and can remove them any time.` },
@@ -20,10 +31,11 @@ export default function Pricing() {
       <div className="max-w-2xl">
         <h1 className="display text-4xl font-semibold">Simple pricing</h1>
         <p className="mt-2 text-muted">
-          Every plan includes everything. Start with a {TRIAL_DAYS}-day free trial, no card needed. Prices in Indian rupees.
+          Two plans, no commission, no hidden charges. Start with a {TRIAL_DAYS}-day free trial, no card needed. Prices in Indian rupees.
         </p>
         <p className="mt-1 text-sm text-muted">
-          Monthly price <span data-testid="plan-price">₹{PLAN_PRICE_INR}</span>. Save more with 3 or 6 months.
+          {TIERS.pro.name} <span data-testid="plan-price-pro">₹{TIERS.pro.monthlyInr}</span> a month · {TIERS.premium.name}{" "}
+          <span data-testid="plan-price-premium">₹{TIERS.premium.monthlyInr}</span> a month. Save more with 3 or 6 months.
         </p>
       </div>
 
@@ -37,6 +49,10 @@ export default function Pricing() {
         <span className="inline-flex items-center gap-2 text-sm text-muted">
           <ShieldCheck className="size-4 text-ok" /> Pay securely with UPI, cards or net banking when your trial ends.
         </span>
+      </div>
+
+      <div className="mt-16">
+        <StaffSavings />
       </div>
 
       <div className="mt-16 max-w-3xl">

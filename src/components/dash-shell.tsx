@@ -15,7 +15,7 @@ const NAV: { href: string; label: string; icon: typeof LayoutDashboard; perm: Pe
   { href: "/dashboard/kitchen", label: "Kitchen", icon: ChefHat, perm: "orders.kitchen" },
   { href: "/dashboard/counter", label: "Counter", icon: Receipt, perm: "orders.counter" },
   { href: "/dashboard/menu", label: "Menu", icon: UtensilsCrossed, perm: "menu.availability" },
-  { href: "/dashboard/qr", label: "Seats & QR", icon: QrCode, perm: "seats.manage" },
+  { href: "/dashboard/qr", label: "QR codes", icon: QrCode, perm: "seats.manage" },
   { href: "/dashboard/reports", label: "Reports", icon: BarChart3, perm: "reports.view" },
   { href: "/dashboard/staff", label: "Staff", icon: Users, perm: "staff.manage" },
   { href: "/dashboard/billing", label: "Billing", icon: CreditCard, perm: "billing.manage" },

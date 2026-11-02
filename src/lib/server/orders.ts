@@ -1,6 +1,14 @@
 import "server-only";
 import { FieldValue } from "firebase-admin/firestore";
-import { MAX_ORDERS_PER_SEAT_WINDOW, MAX_ORDER_LINES, MAX_QTY_PER_LINE, SEAT_WINDOW_MINUTES } from "@/lib/config";
+import {
+  MAX_NAME_LENGTH,
+  MAX_ORDERS_PER_SEAT_WINDOW,
+  MAX_ORDERS_PER_SHARED_QR_WINDOW,
+  MAX_ORDER_LINES,
+  MAX_QTY_PER_LINE,
+  QR_KIND_INFO,
+  SEAT_WINDOW_MINUTES,
+} from "@/lib/config";
 import { canTransition, type OrderStatus } from "@/lib/roles";
 import type { OrderLine } from "@/lib/types";
 import { dayKey } from "@/lib/time";
@@ -8,10 +16,12 @@ import type { MemberContext } from "./auth";
 import { db } from "./firebaseAdmin";
 import { HttpError } from "./http";
 import { randomToken, sha } from "./ids";
-import { canTakeOrders, toRestaurant } from "./restaurants";
+import { canTakeOrders, kindOf, toRestaurant } from "./restaurants";
 
 export interface NewOrderInput {
   seatToken: string;
+  /** Required for parcel and stall QR codes, ignored for dining seats. */
+  customerName?: string;
   items: { dishId: string; qty: number }[];
   note: string;
   idempotencyKey: string;
@@ -29,6 +39,8 @@ export async function createOrder(input: NewOrderInput) {
   if (!/^[A-Za-z0-9-]{16,64}$/.test(input.idempotencyKey)) throw new HttpError(400, "Invalid request.");
   if (!Array.isArray(input.items) || input.items.length === 0) throw new HttpError(400, "Your cart is empty.");
   if (input.items.length > MAX_ORDER_LINES) throw new HttpError(400, "Too many different dishes in one order.");
+
+  const name = cleanName(input.customerName || "");
 
   const qtyById = new Map<string, number>();
   for (const it of input.items) {
@@ -61,14 +73,18 @@ export async function createOrder(input: NewOrderInput) {
       throw new HttpError(403, "This seat is not taking orders. Please ask the staff.", "seat_disabled");
     }
     const restaurant = toRestaurant(restSnap);
-    const gate = canTakeOrders(restaurant);
+    const kind = kindOf(seatSnap.get("kind"));
+    const gate = canTakeOrders(restaurant, kind);
     if (!gate.ok) throw new HttpError(403, gate.reason, "not_accepting");
+    if (QR_KIND_INFO[kind].needsName && !name) throw new HttpError(400, "Please write your name, so we can call you when it is ready.", "name_required");
 
     const now = Date.now();
-    const recent = ((seatSnap.get("recent") as number[]) || []).filter((t) => t > now - SEAT_WINDOW_MINUTES * 60000);
-    if (recent.length >= MAX_ORDERS_PER_SEAT_WINDOW) {
-      throw new HttpError(429, "Too many orders from this seat in a short time. Please ask the staff.", "rate_limited");
+    const limit = kind === "dine" ? MAX_ORDERS_PER_SEAT_WINDOW : MAX_ORDERS_PER_SHARED_QR_WINDOW;
+    const recent = ((seatSnap.get("recent") as number[]) || []).filter((t) => t > now - SEAT_WINDOW_MINUTES * 60000).slice(-limit);
+    if (recent.length >= limit) {
+      throw new HttpError(429, "Too many orders from this QR code in a short time. Please ask the staff.", "rate_limited");
     }
+    const customerName = QR_KIND_INFO[kind].needsName ? name : "";
 
     const dishRefs = [...qtyById.keys()].map((id) => f.doc(`restaurants/${rid}/dishes/${id}`));
     const dishSnaps = await tx.getAll(...dishRefs);
@@ -96,6 +112,8 @@ export async function createOrder(input: NewOrderInput) {
       seatId: sid,
       seatNumber,
       seatLabel,
+      kind,
+      customerName,
       items: lines,
       note: input.note,
       totalPaise: total,
@@ -118,6 +136,8 @@ export async function createOrder(input: NewOrderInput) {
       restaurantSlug: restaurant.slug,
       number,
       seatLabel,
+      kind,
+      customerName,
       items: lines.map((l) => ({ dishId: l.dishId, name: l.name, qty: l.qty })),
       rated: false,
       totalPaise: total,
@@ -132,9 +152,25 @@ export async function createOrder(input: NewOrderInput) {
       { day, orders: FieldValue.increment(1), salesPaise: FieldValue.increment(total), dishes },
       { merge: true },
     );
-    return { created: true, rid, oid, number, publicToken, seatLabel, seatNumber, lines, total };
+    return { created: true, rid, oid, number, publicToken, seatLabel, seatNumber, kind, customerName, lines, total };
   });
   return result;
+}
+
+/**
+ * A guest's name for parcel and stall orders: letters (any script), spaces, dots, apostrophes and
+ * hyphens, at most MAX_NAME_LENGTH characters. Anything else is removed, so the kitchen screen and
+ * the voice never get links, numbers or symbols.
+ */
+export function cleanName(raw: string): string {
+  const s = String(raw)
+    .normalize("NFC")
+    .replace(/[^\p{L}\p{M} .'-]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, MAX_NAME_LENGTH)
+    .trim();
+  return /\p{L}/u.test(s) ? s : "";
 }
 
 /** Moves an order to a new status if the member's role allows that step. */

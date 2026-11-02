@@ -1,8 +1,10 @@
+import { QR_KINDS, type QrKind } from "./config";
 import type { Category, DayStats, Dish, Member, Order, Payment, Restaurant, Seat } from "./types";
 
 type D = Record<string, unknown>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const a = (d: D) => d as any;
+const kind = (v: unknown): QrKind => (QR_KINDS.includes(v as QrKind) ? (v as QrKind) : "dine");
 
 export const mapCategory = (id: string, d: D): Category => ({ id, name: a(d).name || "", sort: a(d).sort || 0 });
 
@@ -26,6 +28,7 @@ export const mapSeat = (id: string, d: D): Seat => ({
   label: a(d).label || `Seat ${a(d).number}`,
   token: a(d).token,
   active: a(d).active !== false,
+  kind: kind(a(d).kind),
 });
 
 export const mapOrder = (id: string, d: D): Order => ({
@@ -34,6 +37,8 @@ export const mapOrder = (id: string, d: D): Order => ({
   seatId: a(d).seatId,
   seatNumber: a(d).seatNumber,
   seatLabel: a(d).seatLabel || `Seat ${a(d).seatNumber}`,
+  kind: kind(a(d).kind),
+  customerName: a(d).customerName || "",
   items: a(d).items || [],
   note: a(d).note || "",
   totalPaise: a(d).totalPaise || 0,
@@ -91,5 +96,6 @@ export const mapRestaurant = (id: string, x: D): Restaurant => ({
   createdAt: a(x).createdAt || 0,
   trialEndsAt: a(x).trialEndsAt || 0,
   subscription: { status: a(x).subscription?.status || "trialing", currentPeriodEnd: a(x).subscription?.currentPeriodEnd || null },
+  planTier: a(x).planTier === "pro" || a(x).planTier === "premium" ? a(x).planTier : "",
   settings: { voiceLang: a(x).settings?.voiceLang === "hi" ? "hi" : "en", acceptingOrders: a(x).settings?.acceptingOrders !== false },
 });

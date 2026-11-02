@@ -1,4 +1,5 @@
 "use client";
+import { orderWho } from "@/lib/order-label";
 import { ArrowRight, BarChart3, ChefHat, QrCode, Receipt, UtensilsCrossed } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -58,10 +59,10 @@ function Overview() {
         <Card className="mb-6 flex flex-col gap-3 border-amber/50 bg-amber-soft p-5 sm:flex-row sm:items-center">
           <QrCode className="size-6 shrink-0 text-amber-deep" />
           <p className="text-sm">
-            <strong>Add your seats</strong> to get QR codes. Guests cannot order until each seat has its code.
+            <strong>Add your QR codes</strong> for dining seats, a parcel counter or a stall. Guests cannot order until there is a code to scan.
           </p>
           <Link href="/dashboard/qr" className={buttonClass("dark", "sm", "sm:ml-auto")}>
-            Add seats
+            Add QR codes
           </Link>
         </Card>
       )}
@@ -102,7 +103,7 @@ function Overview() {
             {active.slice(0, 8).map((o) => (
               <li key={o.id} className="flex flex-wrap items-center gap-3 py-3">
                 <div className="w-24">
-                  <p className="font-bold">{o.seatLabel}</p>
+                  <p className="truncate font-bold">{orderWho(o)}</p>
                   <p className="text-xs text-muted">
                     #{o.number} · {ago(o.createdAt)}
                   </p>

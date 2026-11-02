@@ -10,7 +10,7 @@ export default function QrPage() {
   if (!can(d.role, "seats.manage")) return <NoAccess />;
   return (
     <div>
-      <PageHeader title="Seats & QR codes" subtitle="Every seat has its own code. Guests scan it and the order arrives with the seat number." />
+      <PageHeader title="QR codes" subtitle="Dining seats, parcel and stall counters. Guests scan, see your menu and order; the kitchen hears it." />
       <SeatsManager rid={d.rid} restaurantName={d.restaurant.name} />
     </div>
   );

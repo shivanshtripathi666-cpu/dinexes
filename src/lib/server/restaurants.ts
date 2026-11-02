@@ -1,6 +1,7 @@
 import "server-only";
 import type { DocumentSnapshot } from "firebase-admin/firestore";
-import { accessOf } from "@/lib/access";
+import { accessOf, kindAllowed } from "@/lib/access";
+import { QR_KINDS, type QrKind } from "@/lib/config";
 import type { Category, Dish, Member, Restaurant, Seat } from "@/lib/types";
 import { db } from "./firebaseAdmin";
 import { HttpError } from "./http";
@@ -26,8 +27,14 @@ export function toRestaurant(d: DocumentSnapshot): Restaurant {
     createdAt: x.createdAt || 0,
     trialEndsAt: x.trialEndsAt || 0,
     subscription: { status: x.subscription?.status || "trialing", currentPeriodEnd: x.subscription?.currentPeriodEnd || null },
+    planTier: x.planTier === "pro" || x.planTier === "premium" ? x.planTier : "",
     settings: { voiceLang: x.settings?.voiceLang === "hi" ? "hi" : "en", acceptingOrders: x.settings?.acceptingOrders !== false },
   };
+}
+
+/** Seats made before QR kinds existed are dining seats. */
+export function kindOf(v: unknown): QrKind {
+  return QR_KINDS.includes(v as QrKind) ? (v as QrKind) : "dine";
 }
 
 export function toMember(d: DocumentSnapshot): Member {
@@ -37,7 +44,7 @@ export function toMember(d: DocumentSnapshot): Member {
 
 export function toSeat(d: DocumentSnapshot): Seat {
   const x = d.data() || {};
-  return { id: d.id, number: x.number, label: x.label || `Seat ${x.number}`, token: x.token, active: x.active !== false };
+  return { id: d.id, number: x.number, label: x.label || `Seat ${x.number}`, token: x.token, active: x.active !== false, kind: kindOf(x.kind) };
 }
 
 export async function getRestaurant(rid: string): Promise<Restaurant> {
@@ -87,9 +94,10 @@ export async function resolveHost(host: string): Promise<string | null> {
   return d.exists ? (d.get("rid") as string) : null;
 }
 
-export function canTakeOrders(r: Restaurant): { ok: boolean; reason: string } {
+export function canTakeOrders(r: Restaurant, kind?: QrKind): { ok: boolean; reason: string } {
   const a = accessOf(r);
   if (!a.canOrder) return { ok: false, reason: "This restaurant is not taking online orders right now. Please order with the staff." };
+  if (kind && !kindAllowed(a, kind)) return { ok: false, reason: "This QR code is not active right now. Please order at the counter." };
   if (!r.settings.acceptingOrders) return { ok: false, reason: "Ordering is paused right now. Please order with the staff." };
   return { ok: true, reason: "" };
 }

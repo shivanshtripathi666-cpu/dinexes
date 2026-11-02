@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { LegalPage } from "@/components/legal";
-import { APP_NAME, MAX_STAFF, PLANS, TRIAL_DAYS } from "@/lib/config";
+import { APP_NAME, MAX_STAFF, PLANS, TIERS, TRIAL_DAYS } from "@/lib/config";
 import { env } from "@/lib/server/env";
 
 export const metadata: Metadata = { title: "Terms of service" };
@@ -24,7 +24,11 @@ export default function Terms() {
       <h2>Trial and plans</h2>
       <ul>
         <li>A {TRIAL_DAYS}-day free trial starts on registration. No payment details are needed for the trial.</li>
-        <li>Plans: {PLANS.map((p) => `${p.label} ₹${p.priceInr}`).join(", ")}, taxes as applicable. A paid plan adds its days after the current trial or plan ends.</li>
+        <li>
+          Plans: {PLANS.map((p) => `${TIERS[p.tier].name} ${p.label} ₹${p.priceInr}`).join(", ")}, taxes as applicable. {TIERS.pro.name} includes stall / counter
+          QR codes; {TIERS.premium.name} adds dining seat and parcel QR codes. A paid plan adds its days after the current trial or plan ends, and its
+          features apply from the day you pay. Crossed-out prices are the same plan at the monthly price.
+        </li>
         <li>When no trial or plan is active, guests cannot place new orders. The dashboard and past records stay available.</li>
         <li>Prices may change with 30 days&apos; notice; a period you have already paid for is not affected.</li>
       </ul>

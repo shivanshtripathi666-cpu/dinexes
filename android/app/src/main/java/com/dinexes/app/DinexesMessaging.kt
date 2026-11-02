@@ -17,7 +17,13 @@ class DinexesMessaging : FirebaseMessagingService() {
         if (FirebaseAuth.getInstance().currentUser != null && Prefs(this).voiceOn) {
             OrderVoiceService.start(this, json)
         } else {
-            Notify.newOrder(this, d["number"].orEmpty(), d["seatLabel"].orEmpty(), "Open Dinexes to see the order.")
+            val name = d["customerName"].orEmpty()
+            val who = when (d["kind"]) {
+                "takeaway" -> "Parcel · ${name.ifBlank { d["seatLabel"].orEmpty() }}"
+                "counter" -> if (name.isBlank()) d["seatLabel"].orEmpty() else "$name · ${d["seatLabel"].orEmpty()}"
+                else -> d["seatLabel"].orEmpty()
+            }
+            Notify.newOrder(this, d["number"].orEmpty(), who, "Open Dinexes to see the order.")
         }
     }
 

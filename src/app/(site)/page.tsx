@@ -1,7 +1,28 @@
-import { ArrowRight, BellRing, ChefHat, LayoutDashboard, QrCode, Receipt, ShieldCheck, Smartphone, UtensilsCrossed, Volume2 } from "lucide-react";
-import { PlanGrid } from "@/components/plans";
+import { ArrowRight, BellRing, ChefHat, CupSoda, LayoutDashboard, Package, QrCode, Receipt, ShieldCheck, Smartphone, UtensilsCrossed, Volume2 } from "lucide-react";
+import { PlanGrid, StaffSavings } from "@/components/plans";
 import { ButtonLink } from "@/components/ui";
-import { PLAN_PRICE_INR, TRIAL_DAYS, MAX_STAFF } from "@/lib/config";
+import { LOWEST_MONTHLY_INR, MAX_STAFF, TIERS, TRIAL_DAYS } from "@/lib/config";
+
+const ways = [
+  {
+    icon: UtensilsCrossed,
+    title: "Dining seats",
+    tier: "Premium",
+    text: "A QR on every seat. Guests order from the table; the kitchen hears \"Seat 4, two masala dosa\" and the waiter serves.",
+  },
+  {
+    icon: Package,
+    title: "Parcel / takeaway",
+    tier: "Premium",
+    text: "One QR at the parcel counter. Guests order, write their name and collect the packed food. \"Parcel order for Riya.\"",
+  },
+  {
+    icon: CupSoda,
+    title: "Stall / counter",
+    tier: "Pro and Premium",
+    text: "Perfect for tea, juice and snack stalls. Scan, pick from the full menu, write a name, check the bill and order. The stall hears \"Shivansh, one tea\".",
+  },
+];
 
 const steps = [
   { icon: QrCode, title: "Scan the seat's QR code", text: "Every seat has its own code. The phone camera opens your menu with the seat already known." },
@@ -24,14 +45,14 @@ export default function Home() {
         <div className="mx-auto grid max-w-6xl gap-12 px-4 pb-20 pt-14 md:grid-cols-[1.1fr_0.9fr] md:pt-20">
           <div>
             <p className="inline-flex items-center gap-2 rounded-md border border-amber/40 px-2.5 py-1 text-xs font-semibold uppercase tracking-wider text-amber">
-              Dine-in QR ordering
+              QR ordering for restaurants and stalls
             </p>
             <h1 className="display mt-5 text-4xl font-semibold leading-[1.08] sm:text-5xl">
-              Your guests order from their seat. <span className="text-amber">Your kitchen hears it.</span>
+              Guests order from their phone. <span className="text-amber">Your kitchen hears it.</span>
             </h1>
             <p className="mt-5 max-w-xl text-lg text-ivory/75">
-              A QR code on every seat, a menu that opens in the phone browser, and orders that reach the kitchen and counter instantly. Works on the
-              Android phone you already have. No POS machine, no special speaker.
+              Dining seats, parcel counters and tea stalls. Guests scan, see your full menu and order; the order reaches the kitchen and counter in a
+              second and is read aloud. Works on the Android phone you already have. No POS machine, no special speaker.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <ButtonLink href="/register" size="lg">
@@ -39,7 +60,7 @@ export default function Home() {
               </ButtonLink>
 
             </div>
-            <p className="mt-3 text-sm text-ivory/55">No card needed for the trial. No commission on your orders.</p>
+            <p className="mt-3 text-sm text-ivory/55">No card needed for the trial. No commission on your orders. From ₹{LOWEST_MONTHLY_INR} a month.</p>
           </div>
 
           <div className="relative mx-auto w-full max-w-md md:mx-0" aria-label="Preview of the guest menu and the kitchen screen">
@@ -100,6 +121,23 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="mx-auto max-w-6xl px-4 pt-20">
+        <h2 className="display text-3xl font-semibold">Three ways to take orders</h2>
+        <p className="mt-2 max-w-2xl text-muted">Use one or all three. Each QR code knows what it is for.</p>
+        <div className="mt-8 grid gap-4 md:grid-cols-3">
+          {ways.map((w) => (
+            <div key={w.title} className="rounded-2xl border border-line bg-white p-5">
+              <div className="flex items-center justify-between">
+                <w.icon className="size-6 text-amber-deep" />
+                <span className="rounded-md bg-ivory px-2 py-0.5 text-xs font-semibold text-muted">{w.tier}</span>
+              </div>
+              <h3 className="mt-3 text-lg font-semibold">{w.title}</h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-muted">{w.text}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <section id="how" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-20">
         <h2 className="display text-3xl font-semibold">How it works</h2>
         <p className="mt-2 max-w-2xl text-muted">Four steps from table to kitchen. Set-up takes about fifteen minutes.</p>
@@ -141,8 +179,9 @@ export default function Home() {
             plays a chime, appears in large type and is read aloud. Repeat it with one tap; the full history stays on screen.
           </p>
           <p className="mt-3 text-muted">
-            Phones do not let a website speak while the screen is locked or the browser is closed. Keep the kitchen phone on charge with the kitchen
-            screen open; Dinexes keeps the screen awake while kitchen mode is on, and sends a push notification as a back-up.
+            With the website, keep the kitchen screen open: it stays awake and speaks every order. Close the tab and you still get a loud
+            notification for every order, even with Chrome in the background. For voice with the phone locked or the app closed, use the free
+            Dinexes Android app.
           </p>
         </div>
         <div className="grid gap-4">
@@ -162,12 +201,18 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="mx-auto max-w-6xl px-4 pb-20">
+        <StaffSavings />
+      </section>
+
       <section id="plans" className="scroll-mt-20 border-t border-line bg-ivory">
         <div className="mx-auto max-w-6xl px-4 py-20">
           <div className="mb-10 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
             <div>
               <h2 className="display text-3xl font-semibold">Plans</h2>
-              <p className="mt-2 text-muted">Every plan includes everything. Start free for {TRIAL_DAYS} days, pay only if you keep it.</p>
+              <p className="mt-2 text-muted">
+                {TIERS.pro.name} for stalls and counters, {TIERS.premium.name} for restaurants with seating. Start free for {TRIAL_DAYS} days, pay only if you keep it.
+              </p>
             </div>
             <p className="text-sm text-muted">No commission on food orders · No card for the trial</p>
           </div>
@@ -180,7 +225,7 @@ export default function Home() {
           <div>
             <h2 className="display text-3xl font-semibold">Set up tonight, take orders tomorrow</h2>
             <p className="mt-2 text-ivory/70">
-              From ₹{PLAN_PRICE_INR} a month, or ₹899 for 3 months and ₹1,499 for 6 months. {TRIAL_DAYS} days free.
+              {TIERS.pro.name} from ₹{TIERS.pro.monthlyInr} a month, {TIERS.premium.name} from ₹{TIERS.premium.monthlyInr}. Longer plans cost less. {TRIAL_DAYS} days free.
             </p>
           </div>
           <ButtonLink href="/register" size="lg">

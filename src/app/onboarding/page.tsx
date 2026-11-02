@@ -11,7 +11,7 @@ import { useSession } from "@/components/session";
 import { Alert, Button, Card, cx } from "@/components/ui";
 import { api, errorText } from "@/lib/api";
 
-const STEPS = ["Details", "Logo & cover", "Opening hours", "Seats", "Menu", "Finish"];
+const STEPS = ["Details", "Logo & cover", "Opening hours", "QR codes", "Menu", "Finish"];
 
 export default function OnboardingPage() {
   return (
@@ -100,13 +100,15 @@ function Wizard() {
             {step === 2 && <HoursForm r={d.restaurant} onSaved={next} submitLabel="Save and continue" />}
             {step === 3 && (
               <div className="space-y-5">
-                <p className="text-sm text-muted">Each seat gets its own QR code. You can add, disable or remove seats later.</p>
+                <p className="text-sm text-muted">
+                  Pick the QR type that fits your place: one code per dining seat, or one code for a parcel counter or a stall. You can add more types later.
+                </p>
                 {seats.data.length > 0 && (
                   <Alert tone="ok">
-                    {seats.data.length} {seats.data.length === 1 ? "seat" : "seats"} created.
+                    {seats.data.length} QR {seats.data.length === 1 ? "code" : "codes"} created.
                   </Alert>
                 )}
-                <AddSeatsForm initial={seats.data.length ? 1 : 10} />
+                <AddSeatsForm initial={seats.data.length ? 1 : 10} kinds={d.access.kinds} />
                 <Button variant="outline" onClick={next} disabled={!seats.data.length}>
                   Continue
                 </Button>

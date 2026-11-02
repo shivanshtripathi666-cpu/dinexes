@@ -1,24 +1,35 @@
 import "server-only";
-import { MAX_SEATS } from "@/lib/config";
+import { accessOf, kindAllowed } from "@/lib/access";
+import { MAX_SEATS, QR_KIND_INFO, TIERS, type QrKind } from "@/lib/config";
 import { db } from "./firebaseAdmin";
 import { HttpError } from "./http";
 import { randomToken } from "./ids";
+import { kindOf, toRestaurant } from "./restaurants";
 
-/** Adds seats numbered after the current highest, each with its own secret QR token. */
-export async function addSeats(rid: string, count: number) {
+/**
+ * Adds QR codes of one kind (dining seats, parcel or stall counters), numbered after the highest of
+ * that kind, each with its own secret token. The plan decides which kinds can be added.
+ */
+export async function addSeats(rid: string, count: number, kind: QrKind = "dine") {
   const f = db();
   const restRef = f.doc(`restaurants/${rid}`);
   return f.runTransaction(async (tx) => {
     const r = await tx.get(restRef);
+    if (!r.exists) throw new HttpError(404, "Restaurant not found.");
+    const a = accessOf(toRestaurant(r));
+    if (!kindAllowed(a, kind)) {
+      throw new HttpError(403, `${QR_KIND_INFO[kind].plural} QR codes are part of the ${TIERS.premium.name} plan.`, "not_in_plan");
+    }
     const current = (r.get("seatCount") as number) || 0;
-    const existing = await tx.get(f.collection(`restaurants/${rid}/seats`).orderBy("number", "desc").limit(1));
-    const highest = existing.empty ? 0 : (existing.docs[0].get("number") as number);
-    if (current + count > MAX_SEATS) throw new HttpError(400, `A restaurant can have at most ${MAX_SEATS} seats.`);
+    // At most a few hundred QR codes, so reading them all is cheap and needs no extra index.
+    const all = await tx.get(f.collection(`restaurants/${rid}/seats`).select("number", "kind"));
+    const highest = all.docs.filter((d) => kindOf(d.get("kind")) === kind).reduce((m, d) => Math.max(m, (d.get("number") as number) || 0), 0);
+    if (current + count > MAX_SEATS) throw new HttpError(400, `A restaurant can have at most ${MAX_SEATS} QR codes.`);
     for (let i = 1; i <= count; i++) {
       const n = highest + i;
       const ref = f.collection(`restaurants/${rid}/seats`).doc();
       const token = randomToken();
-      tx.set(ref, { number: n, label: `Seat ${n}`, token, active: true, recent: [], createdAt: Date.now() });
+      tx.set(ref, { number: n, label: `${QR_KIND_INFO[kind].label} ${n}`, kind, token, active: true, recent: [], createdAt: Date.now() });
       tx.set(f.doc(`seatTokens/${token}`), { rid, sid: ref.id });
     }
     tx.update(restRef, { seatCount: current + count });

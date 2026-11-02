@@ -200,7 +200,7 @@ class MainActivity : AppCompatActivity() {
         var s: Speaker? = null
         s = Speaker(this) {
             s?.let { sp ->
-                sp.say(Words.order("101", "2", listOf(Line("Chicken Biryani", 1), Line("Cold Coffee", 2)), sp.modeFor(prefs.voiceLang)))
+                sp.say(Words.order("101", "2", "dine", "", listOf(Line("Chicken Biryani", 1), Line("Cold Coffee", 2)), sp.modeFor(prefs.voiceLang)))
                 if (prefs.voiceLang == "hi" && !sp.hindiAvailable) {
                     AlertDialog.Builder(this)
                         .setTitle("Hindi voice not installed")

@@ -1,4 +1,5 @@
 "use client";
+import { orderWho } from "@/lib/order-label";
 import { BellRing, ChefHat, History, Repeat, Volume2, VolumeX } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDash } from "@/components/dash-context";
@@ -12,13 +13,15 @@ import { enablePush } from "@/lib/push-client";
 import { STATUS_LABEL, can, canTransition } from "@/lib/roles";
 import { ago, formatTime } from "@/lib/time";
 import type { Order } from "@/lib/types";
-import { announcementText, chime, hasVoiceFor, loadVoices, reminderText, speak, speechSupported, unlockAudio, type VoiceLang } from "@/lib/voice";
+import { announcementText, readyText, chime, hasVoiceFor, loadVoices, reminderText, speak, speechSupported, unlockAudio, type VoiceLang } from "@/lib/voice";
 
 interface Prefs {
   voice: boolean;
   volume: number;
   lang: VoiceLang;
   remind: boolean;
+  /** Call out parcel and stall orders by name when they are marked ready. */
+  callReady: boolean;
 }
 
 interface Announcement {
@@ -40,7 +43,7 @@ function Kitchen() {
   const orders = useOrdersSince(d.rid, since);
   const act = useOrderAction();
   const [started, setStarted] = useState(false);
-  const [prefs, setPrefs] = useState<Prefs>({ voice: true, volume: 1, lang: d.restaurant.settings.voiceLang, remind: true });
+  const [prefs, setPrefs] = useState<Prefs>({ voice: true, volume: 1, lang: d.restaurant.settings.voiceLang, remind: true, callReady: true });
   const [history, setHistory] = useState<Announcement[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [flash, setFlash] = useState<Order | null>(null);
@@ -95,6 +98,21 @@ function Kitchen() {
       });
     });
   }, []);
+
+  // Call out parcel and stall orders by name when someone marks them ready (on any device).
+  const lastStatus = useRef<Map<string, string> | null>(null);
+  useEffect(() => {
+    if (orders.loading) return;
+    const prev = lastStatus.current;
+    lastStatus.current = new Map(orders.data.map((o) => [o.id, o.status]));
+    if (!prev) return;
+    for (const o of orders.data) {
+      const before = prev.get(o.id);
+      if (o.status === "ready" && before && before !== "ready" && o.kind !== "dine" && prefsRef.current.callReady) {
+        announce(readyText(o, prefsRef.current.lang), o.id);
+      }
+    }
+  }, [orders.data, orders.loading, announce]);
 
   // Detect orders that arrive after the screen opened.
   useEffect(() => {
@@ -209,6 +227,10 @@ function Kitchen() {
             className="w-24 accent-[#d29b3a]"
           />
         </label>
+        <label className="flex items-center gap-2 text-sm font-medium" title="Parcel and stall orders: say the guest's name when the order is marked ready">
+          Call names
+          <Toggle label="Call out names when ready" checked={prefs.callReady} onChange={(v) => setPrefs({ ...prefs, callReady: v })} />
+        </label>
         <Button
           size="sm"
           variant="outline"
@@ -275,7 +297,7 @@ function Kitchen() {
         >
           <BellRing className="size-6" />
           <span className="text-lg font-bold">
-            New order #{flashLive.number} · {flashLive.seatLabel}
+            New order #{flashLive.number} · {orderWho(flashLive)}
           </span>
           <span className="ml-auto text-sm font-semibold underline">Dismiss</span>
         </button>
@@ -367,9 +389,14 @@ function Ticket({
           <p className="text-xs font-semibold uppercase tracking-wide text-muted">
             Order #{o.number} · {formatTime(o.createdAt)}
           </p>
-          <p className="mt-0.5 text-4xl font-bold leading-none" data-testid="ticket-seat">
-            {o.seatLabel}
+          <p className="mt-0.5 break-words text-4xl font-bold leading-none" data-testid="ticket-seat">
+            {o.customerName || o.seatLabel}
           </p>
+          {o.kind !== "dine" && (
+            <p className="mt-1.5 inline-flex rounded-md bg-navy px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-ivory" data-testid="ticket-kind">
+              {o.kind === "takeaway" ? "Parcel · pack it" : `${o.seatLabel} · collect`}
+            </p>
+          )}
         </div>
         <Badge tone={o.status === "new" ? "amber" : o.status === "ready" ? "ok" : "info"}>{STATUS_LABEL[o.status]}</Badge>
       </div>

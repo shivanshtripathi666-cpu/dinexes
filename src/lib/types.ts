@@ -1,3 +1,4 @@
+import type { QrKind, Tier } from "./config";
 import type { OrderStatus, Role } from "./roles";
 
 export type SubscriptionStatus = "trialing" | "active" | "expired";
@@ -28,6 +29,8 @@ export interface Restaurant {
   createdAt: number;
   trialEndsAt: number;
   subscription: { status: SubscriptionStatus; currentPeriodEnd: number | null };
+  /** Plan bought last ("" before any payment; the free trial includes everything). */
+  planTier: Tier | "";
   settings: { voiceLang: "en" | "hi"; acceptingOrders: boolean };
 }
 
@@ -66,6 +69,7 @@ export interface Seat {
   label: string;
   token: string;
   active: boolean;
+  kind: QrKind;
 }
 
 export interface OrderLine {
@@ -82,6 +86,9 @@ export interface Order {
   seatId: string;
   seatNumber: number;
   seatLabel: string;
+  kind: QrKind;
+  /** Name the guest typed (parcel and stall orders); empty for dining seats. */
+  customerName: string;
   items: OrderLine[];
   note: string;
   totalPaise: number;
@@ -102,6 +109,8 @@ export interface PublicOrderStatus {
   seatToken: string;
   number: number;
   seatLabel: string;
+  kind: QrKind;
+  customerName: string;
   items: { name: string; qty: number; dishId?: string }[];
   totalPaise: number;
   status: OrderStatus;
@@ -147,4 +156,8 @@ export interface Access {
   endsAt: number;
   daysLeft: number;
   canOrder: boolean;
+  /** Features in use now: the trial includes Premium. */
+  tier: Tier;
+  /** QR kinds the restaurant can use now. */
+  kinds: readonly QrKind[];
 }

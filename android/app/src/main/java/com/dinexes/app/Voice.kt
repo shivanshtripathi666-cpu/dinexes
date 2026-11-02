@@ -18,10 +18,42 @@ object Words {
     private fun join(parts: List<String>, and: String) =
         if (parts.size <= 1) parts.joinToString("") else parts.dropLast(1).joinToString(", ") + " $and " + parts.last()
 
-    fun order(number: String, seat: String, items: List<Line>, mode: String): String = when (mode) {
-        "hi" -> "नया ऑर्डर। सीट नंबर $seat। ${join(items.map { l -> "${HI.getOrElse(l.qty) { l.qty.toString() }} ${l.name}" }, "और")}। ऑर्डर नंबर $number।"
-        "hinglish" -> "Naya order. Seat number $seat. ${join(items.map { l -> "${HR.getOrElse(l.qty) { l.qty.toString() }} ${l.name}" }, "aur")}. Order number $number."
-        else -> "New order. Seat number $seat. ${join(items.map { l -> "${EN.getOrElse(l.qty) { l.qty.toString() }} ${l.name}" }, "and")}. Order number $number."
+    private fun said(items: List<Line>, nums: List<String>, and: String) =
+        join(items.map { l -> "${nums.getOrElse(l.qty) { l.qty.toString() }} ${l.name}" }, and)
+
+    /**
+     * New order. kind is "dine" (seat), "takeaway" (parcel, with the guest's name) or "counter"
+     * (stall: "Shivansh. One tea.").
+     */
+    fun order(number: String, seat: String, kind: String, name: String, items: List<Line>, mode: String): String {
+        val who = name.ifBlank { if (mode == "hi") "काउंटर ऑर्डर" else "Counter order" }
+        return when (mode) {
+            "hi" -> when (kind) {
+                "takeaway" -> "पार्सल ऑर्डर, $name के लिए। ${said(items, HI, "और")}। ऑर्डर नंबर $number।"
+                "counter" -> "$who। ${said(items, HI, "और")}। ऑर्डर नंबर $number।"
+                else -> "नया ऑर्डर। सीट नंबर $seat। ${said(items, HI, "और")}। ऑर्डर नंबर $number।"
+            }
+            "hinglish" -> when (kind) {
+                "takeaway" -> "Parcel order, $name ke liye. ${said(items, HR, "aur")}. Order number $number."
+                "counter" -> "$who. ${said(items, HR, "aur")}. Order number $number."
+                else -> "Naya order. Seat number $seat. ${said(items, HR, "aur")}. Order number $number."
+            }
+            else -> when (kind) {
+                "takeaway" -> "Parcel order for $name. ${said(items, EN, "and")}. Order number $number."
+                "counter" -> "$who. ${said(items, EN, "and")}. Order number $number."
+                else -> "New order. Seat number $seat. ${said(items, EN, "and")}. Order number $number."
+            }
+        }
+    }
+
+    /** Parcel or stall order marked ready: "Shivansh, your order is ready." */
+    fun ready(number: String, name: String, mode: String): String {
+        val who = name.ifBlank { "Order number $number" }
+        return when (mode) {
+            "hi" -> "$who, आपका ऑर्डर तैयार है। ऑर्डर नंबर $number।"
+            "hinglish" -> "$who, aapka order ready hai. Order number $number."
+            else -> "$who, your order is ready. Order number $number."
+        }
     }
 }
 

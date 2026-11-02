@@ -8,7 +8,7 @@ import { PasswordHint, PasswordInput, passwordProblem } from "@/components/passw
 import { useSession } from "@/components/session";
 import { Alert, Button, Field, Input, Spinner } from "@/components/ui";
 import { api, errorText } from "@/lib/api";
-import { PLAN_PRICE_INR, TRIAL_DAYS, planById } from "@/lib/config";
+import { LOWEST_MONTHLY_INR, TIERS, TRIAL_DAYS, planById } from "@/lib/config";
 import { fb } from "@/lib/firebase/client";
 import { GoogleMark, finishGoogleRedirect, googleSignIn } from "@/lib/google";
 import { homeFor } from "@/lib/landing";
@@ -168,8 +168,8 @@ function Register() {
       <p className="mt-1 text-sm font-medium text-amber-deep">For restaurant owners. Staff are added by the owner later.</p>
       <p className="mt-2 text-muted">
         {chosen
-          ? `${TRIAL_DAYS} days free, then ${chosen.label} for ₹${chosen.priceInr.toLocaleString("en-IN")} if you continue. No card needed now.`
-          : `${TRIAL_DAYS} days free, then from ₹${PLAN_PRICE_INR} a month. No card needed now.`}
+          ? `${TRIAL_DAYS} days free with everything, then ${TIERS[chosen.tier].name} ${chosen.label} for ₹${chosen.priceInr.toLocaleString("en-IN")} if you continue. No card needed now.`
+          : `${TRIAL_DAYS} days free with everything, then from ₹${LOWEST_MONTHLY_INR} a month. No card needed now.`}
       </p>
 
       {step === "account" && (

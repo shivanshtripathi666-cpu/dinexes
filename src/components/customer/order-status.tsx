@@ -11,12 +11,20 @@ import { formatTime } from "@/lib/time";
 import type { PublicOrderStatus } from "@/lib/types";
 import { Alert, Button, Textarea, buttonClass, cx } from "../ui";
 
-const STEPS: { s: OrderStatus; label: string; text: string; icon: typeof Check }[] = [
+type Step = { s: OrderStatus; label: string; text: string; icon: typeof Check };
+const DINE_STEPS: Step[] = [
   { s: "new", label: "Order received", text: "The kitchen has your order.", icon: Clock },
   { s: "accepted", label: "Accepted", text: "The kitchen has accepted your order.", icon: Check },
   { s: "preparing", label: "Preparing", text: "Your food is being prepared.", icon: ChefHat },
   { s: "ready", label: "Ready", text: "Your food is ready and will be served shortly.", icon: HandPlatter },
   { s: "served", label: "Served", text: "Enjoy your meal.", icon: Check },
+];
+const PICKUP_STEPS: Step[] = [
+  { s: "new", label: "Order received", text: "The kitchen has your order.", icon: Clock },
+  { s: "accepted", label: "Accepted", text: "The kitchen has accepted your order.", icon: Check },
+  { s: "preparing", label: "Preparing", text: "Your order is being made.", icon: ChefHat },
+  { s: "ready", label: "Ready to collect", text: "Your order is ready. Please collect it at the counter and pay there.", icon: HandPlatter },
+  { s: "served", label: "Collected", text: "Thank you! Enjoy.", icon: Check },
 ];
 
 export function OrderStatusView({ token, initial }: { token: string; initial: PublicOrderStatus }) {
@@ -62,8 +70,25 @@ export function OrderStatusView({ token, initial }: { token: string; initial: Pu
     };
   }, [token]);
 
+  const pickup = o.kind === "takeaway" || o.kind === "counter";
+  const STEPS = pickup ? PICKUP_STEPS : DINE_STEPS;
   const idx = STEPS.findIndex((x) => x.s === o.status);
   const cancelled = o.status === "cancelled";
+  const ready = o.status === "ready";
+
+  // When the order turns ready: buzz the phone and change the tab title, so a guest waiting at a stall notices.
+  const [wasReady, setWasReady] = useState(initial.status === "ready");
+  useEffect(() => {
+    if (ready && !wasReady) {
+      setWasReady(true);
+      try {
+        navigator.vibrate?.([400, 150, 400, 150, 400]);
+      } catch {
+        /* vibration not allowed */
+      }
+    }
+    document.title = ready ? `Ready! Order #${o.number}` : `Order #${o.number}`;
+  }, [ready, wasReady, o.number]);
 
   return (
     <div className="min-h-dvh bg-paper">
@@ -71,8 +96,13 @@ export function OrderStatusView({ token, initial }: { token: string; initial: Pu
         <div className="mx-auto max-w-lg">
           <p className="text-sm text-ivory/70">{o.restaurantName}</p>
           <h1 className="display mt-1 text-3xl font-semibold">Order #{o.number}</h1>
+          {o.customerName && (
+            <p className="mt-1 text-xl font-semibold" data-testid="order-name">
+              {o.customerName}
+            </p>
+          )}
           <p className="mt-1 text-ivory/80">
-            {o.seatLabel} · placed at {formatTime(o.createdAt)}
+            {o.kind === "takeaway" ? "Parcel" : o.seatLabel} · placed at {formatTime(o.createdAt)}
           </p>
           <p className="mt-4 inline-flex items-center gap-2 rounded-md bg-amber px-3 py-1.5 text-sm font-bold text-ink" data-testid="order-status">
             {STATUS_LABEL[o.status]}
@@ -80,6 +110,27 @@ export function OrderStatusView({ token, initial }: { token: string; initial: Pu
         </div>
       </header>
       <main className="mx-auto max-w-lg space-y-6 px-4 py-6">
+        {pickup && !cancelled && (
+          <div
+            className={cx("rounded-xl border p-4 text-center", ready ? "border-ok bg-ok text-white" : "border-line bg-white")}
+            data-testid="pickup-box"
+            aria-live="polite"
+          >
+            {ready ? (
+              <>
+                <p className="text-2xl font-bold">Ready! Please collect</p>
+                <p className="mt-1">Show order #{o.number} at the counter and pay {formatINR(o.totalPaise)}.</p>
+              </>
+            ) : o.status === "served" ? (
+              <p className="font-semibold">Collected. Thank you!</p>
+            ) : (
+              <>
+                <p className="font-semibold">We will call your name when it is ready</p>
+                <p className="mt-1 text-sm text-muted">Keep this page open. Pay {formatINR(o.totalPaise)} at the counter when you collect.</p>
+              </>
+            )}
+          </div>
+        )}
         {cancelled ? (
           <div className="flex gap-3 rounded-xl border border-bad/30 bg-bad-soft p-4 text-bad">
             <CircleX className="size-5 shrink-0" />
@@ -119,17 +170,17 @@ export function OrderStatusView({ token, initial }: { token: string; initial: Pu
             <span className="font-semibold">Total</span>
             <span className="font-bold">{formatINR(o.totalPaise)}</span>
           </div>
-          <p className="mt-1 text-xs text-muted">Please pay at the counter.</p>
+          <p className="mt-1 text-xs text-muted">Please pay at the counter{pickup ? " when you collect" : ""}.</p>
         </section>
 
         {o.status === "served" && <RateFood token={token} items={o.items} rated={!!o.rated} />}
 
         {seat ? (
           <a href={`/t/${seat}`} className={buttonClass("dark", "lg", "w-full")}>
-            <Plus className="size-4" /> Order more from this seat
+            <Plus className="size-4" /> {pickup ? "Order something else" : "Order more from this seat"}
           </a>
         ) : (
-          <p className="text-center text-sm text-muted">To order more, scan the QR code on your seat again.</p>
+          <p className="text-center text-sm text-muted">To order more, scan the QR code again.</p>
         )}
         {!live && <p className="text-center text-xs text-muted">Live updates are slow on this connection; the status refreshes every few seconds.</p>}
       </main>

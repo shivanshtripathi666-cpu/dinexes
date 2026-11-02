@@ -7,8 +7,8 @@ import { NoAccess } from "@/components/dash-shell";
 import { useSession } from "@/components/session";
 import { Alert, Badge, Button, Card, EmptyState, PageHeader, Spinner } from "@/components/ui";
 import { api, errorText } from "@/lib/api";
-import { PLANS, PLAN_PRICE_INR, TRIAL_DAYS, planById, type PlanId } from "@/lib/config";
-import { PlanCard } from "@/components/plans";
+import { QR_KIND_INFO, TIERS, TRIAL_DAYS, planById, planName, plansOf, type PlanId } from "@/lib/config";
+import { PlanOption, TierSwitch } from "@/components/plans";
 import { cfg } from "@/lib/firebase/client";
 import { useLiveCollection } from "@/lib/firebase/hooks";
 import { mapPayment } from "@/lib/mappers";
@@ -46,7 +46,7 @@ function Billing() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
-  const [plan, setPlan] = useState<PlanId>("m3");
+  const [plan, setPlan] = useState<PlanId>(d.access.state === "active" && d.access.tier === "pro" ? "pro3" : "prem3");
   useEffect(() => {
     try {
       const fromLink = new URLSearchParams(window.location.search).get("plan");
@@ -60,6 +60,8 @@ function Billing() {
   const chosen = planById(plan)!;
   const enabled = cfg().paymentsEnabled;
   const a = d.access;
+  const tier = chosen.tier;
+  const downgrade = a.state === "active" && a.tier === "premium" && tier === "pro";
 
   async function pay() {
     setBusy(true);
@@ -74,7 +76,7 @@ function Billing() {
         currency: "INR",
         order_id: o.orderId,
         name: "Dinexes",
-        description: `${d.restaurant.name} · ${chosen.label}`,
+        description: `${d.restaurant.name} · ${planName(chosen.id)}`,
         prefill: { email: d.email, contact: d.restaurant.phone },
         theme: { color: "#131b2b" },
         handler: async (resp: Record<string, string>) => {
@@ -103,14 +105,14 @@ function Billing() {
 
   return (
     <div className="max-w-4xl">
-      <PageHeader title="Subscription & billing" subtitle="One plan per restaurant, billed in Indian rupees." />
+      <PageHeader title="Subscription & billing" subtitle="Pro for stalls, Premium for restaurants with seating. Billed in Indian rupees." />
       <div className="grid gap-6 md:grid-cols-[1.1fr_1fr]">
         <Card className="p-6">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm font-semibold uppercase tracking-wide text-muted">Current status</p>
               <p className="mt-2 text-2xl font-bold" data-testid="billing-status">
-                {a.state === "trialing" ? "Free trial" : a.state === "active" ? "Active" : "Expired"}
+                {a.state === "trialing" ? "Free trial" : a.state === "active" ? `${TIERS[a.tier].name} · Active` : "Expired"}
               </p>
             </div>
             <Badge tone={a.state === "active" ? "ok" : a.state === "trialing" ? "amber" : "bad"}>
@@ -118,24 +120,31 @@ function Billing() {
             </Badge>
           </div>
           <p className="mt-3 text-sm text-muted" data-testid="billing-detail">
-            {a.state === "trialing" && `${a.daysLeft} ${a.daysLeft === 1 ? "day" : "days"} left of your ${TRIAL_DAYS}-day trial. Ends ${formatDate(a.endsAt)}.`}
+            {a.state === "trialing" && `${a.daysLeft} ${a.daysLeft === 1 ? "day" : "days"} left of your ${TRIAL_DAYS}-day trial (everything included). Ends ${formatDate(a.endsAt)}.`}
             {a.state === "active" && `Paid until ${formatDate(a.endsAt)} (${a.daysLeft} days).`}
             {a.state === "expired" && `Ended ${formatDate(a.endsAt)}. Guests cannot place orders until you renew.`}
           </p>
           <div className="mt-6 border-t border-line pt-5">
-            <p className="text-sm text-muted">
-              Monthly price <span className="font-semibold text-ink" data-testid="billing-price">₹{PLAN_PRICE_INR}</span>. Choose a longer plan to save.
+            <TierSwitch value={tier} onChange={(t) => setPlan(t === "pro" ? "pro3" : "prem3")} />
+            <p className="mt-3 text-sm text-muted">
+              {TIERS[tier].name}: {TIERS[tier].kinds.map((k) => QR_KIND_INFO[k].plural.toLowerCase()).join(", ")} QR codes. Monthly price{" "}
+              <span className="font-semibold text-ink" data-testid="billing-price">₹{TIERS[tier].monthlyInr}</span>; longer plans save more.
             </p>
-            <div className="mt-4 grid gap-3" role="radiogroup" aria-label="Choose a plan">
-              {PLANS.map((p) => (
+            <div className="mt-4 grid gap-3" role="radiogroup" aria-label={`Choose a ${TIERS[tier].name} plan`}>
+              {plansOf(tier).map((p) => (
                 <button key={p.id} type="button" role="radio" aria-checked={plan === p.id} onClick={() => setPlan(p.id)} className="block w-full text-left">
-                  <PlanCard plan={p} selected={plan === p.id} compact />
+                  <PlanOption plan={p} selected={plan === p.id} />
                 </button>
               ))}
             </div>
+            {downgrade && (
+              <Alert tone="amber" className="mt-4">
+                Switching to {TIERS.pro.name} turns off dining seat and parcel QR codes as soon as you pay. Stall / counter QR codes keep working.
+              </Alert>
+            )}
             {enabled ? (
               <Button size="lg" className="mt-5 w-full" onClick={pay} loading={busy}>
-                <CreditCard className="size-4" /> Pay ₹{chosen.priceInr.toLocaleString("en-IN")} for {chosen.label}
+                <CreditCard className="size-4" /> Pay ₹{chosen.priceInr.toLocaleString("en-IN")} for {TIERS[tier].name} · {chosen.label}
               </Button>
             ) : (
               <div className="mt-5 rounded-lg border border-dashed border-line bg-ivory p-4 text-sm" data-testid="payments-placeholder">
@@ -176,7 +185,7 @@ function Billing() {
                   <li key={p.id} className="flex items-center justify-between py-3 text-sm">
                     <div>
                       <p className="font-medium">
-                        {formatINR(p.amountPaise)} · {planById(p.plan)?.label || "Plan"}
+                        {formatINR(p.amountPaise)} · {planName(p.plan)}
                       </p>
                       <p className="text-xs text-muted">
                         {p.periodStart && p.periodEnd ? `${formatDate(p.periodStart)} – ${formatDate(p.periodEnd)}` : formatDate(p.createdAt)}

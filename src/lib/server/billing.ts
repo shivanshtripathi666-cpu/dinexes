@@ -79,8 +79,10 @@ export async function creditPayment(rid: string, orderId: string, paymentId: str
     const start = Math.max(now, (r.get("subscription.currentPeriodEnd") as number) || 0, (r.get("trialEndsAt") as number) || 0);
     const days = (p.get("days") as number) || 30;
     const end = start + days * 86400000;
+    // The plan bought decides the features from now on (an upgrade to Premium applies at once).
+    const tier = planById(p.get("plan") as string)?.tier || "premium";
     tx.update(payRef, { status: "paid", providerPaymentId: paymentId, periodStart: start, periodEnd: end, paidAt: now });
-    tx.update(restRef, { "subscription.status": "active", "subscription.currentPeriodEnd": end });
+    tx.update(restRef, { "subscription.status": "active", "subscription.currentPeriodEnd": end, planTier: tier });
     return { periodEnd: end };
   });
 }

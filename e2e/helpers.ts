@@ -32,6 +32,20 @@ export async function adminPatchInt(request: APIRequestContext, path: string, fi
   expect(r.ok(), await r.text()).toBeTruthy();
 }
 
+/** Sets plan fields on a restaurant (test set-up only): the tier and when the paid period ends. */
+export async function adminSetPlan(request: APIRequestContext, rid: string, tier: "pro" | "premium", periodEnd: number) {
+  const r = await request.patch(`${FS}/restaurants/${rid}?updateMask.fieldPaths=planTier&updateMask.fieldPaths=subscription`, {
+    headers: { Authorization: "Bearer owner" },
+    data: {
+      fields: {
+        planTier: { stringValue: tier },
+        subscription: { mapValue: { fields: { status: { stringValue: "active" }, currentPeriodEnd: { integerValue: String(periodEnd) } } } },
+      },
+    },
+  });
+  expect(r.ok(), await r.text()).toBeTruthy();
+}
+
 /** Opens the email-verification link the Auth emulator "sent". */
 export async function verifyEmail(request: APIRequestContext, email: string) {
   await expect

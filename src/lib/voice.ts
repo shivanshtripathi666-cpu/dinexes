@@ -17,18 +17,42 @@ function list(parts: string[], and: string) {
   return `${parts.slice(0, -1).join(", ")} ${and} ${parts[parts.length - 1]}`;
 }
 
-export function announcementText(o: { number: number; seatNumber: number; seatLabel: string; items: Pick<OrderLine, "name" | "qty">[] }, lang: VoiceLang): string {
+type Announce = { number: number; seatNumber: number; seatLabel: string; kind?: "dine" | "takeaway" | "counter"; customerName?: string; items: Pick<OrderLine, "name" | "qty">[] };
+
+/**
+ * What the kitchen hears for a new order.
+ * - Dining seat: "New order. Seat number 4. Two masala dosa. Order number 102."
+ * - Parcel:      "Parcel order for Shivansh. One veg biryani. Order number 103."
+ * - Stall:       "Shivansh. One tea. Order number 104."
+ */
+export function announcementText(o: Announce, lang: VoiceLang): string {
+  const name = (o.customerName || "").trim();
+  const kind = o.kind || "dine";
   if (lang === "hi" && !hindiVoiceReady()) {
     // No Hindi voice on this phone: say it in Hinglish with the Indian English voice, which reads it clearly.
     const items = list(o.items.map((i) => `${HI_ROMAN[i.qty] || i.qty} ${i.name}`), "aur");
+    if (kind === "takeaway") return `Parcel order, ${name} ke liye. ${items}. Order number ${o.number}.`;
+    if (kind === "counter") return `${name || "Counter order"}. ${items}. Order number ${o.number}.`;
     return `Naya order. Seat number ${o.seatNumber}. ${items}. Order number ${o.number}.`;
   }
   if (lang === "hi") {
     const items = list(o.items.map((i) => `${HI_NUM[i.qty] || i.qty} ${i.name}`), "और");
+    if (kind === "takeaway") return `पार्सल ऑर्डर, ${name} के लिए। ${items}। ऑर्डर नंबर ${o.number}।`;
+    if (kind === "counter") return `${name || "काउंटर ऑर्डर"}। ${items}। ऑर्डर नंबर ${o.number}।`;
     return `नया ऑर्डर। सीट नंबर ${o.seatNumber}। ${items}। ऑर्डर नंबर ${o.number}।`;
   }
   const items = list(o.items.map((i) => `${EN_NUM[i.qty] || i.qty} ${i.name}`), "and");
+  if (kind === "takeaway") return `Parcel order for ${name}. ${items}. Order number ${o.number}.`;
+  if (kind === "counter") return `${name || "Counter order"}. ${items}. Order number ${o.number}.`;
   return `New order. Seat number ${o.seatNumber}. ${items}. Order number ${o.number}.`;
+}
+
+/** Called out when a parcel or stall order is marked ready: "Shivansh, your order is ready." */
+export function readyText(o: { number: number; customerName?: string }, lang: VoiceLang): string {
+  const name = (o.customerName || "").trim() || `Order number ${o.number}`;
+  if (lang === "hi" && !hindiVoiceReady()) return `${name}, aapka order ready hai. Order number ${o.number}.`;
+  if (lang === "hi") return `${name}, आपका ऑर्डर तैयार है। ऑर्डर नंबर ${o.number}।`;
+  return `${name}, your order is ready. Order number ${o.number}.`;
 }
 
 export function reminderText(waiting: number, lang: VoiceLang) {

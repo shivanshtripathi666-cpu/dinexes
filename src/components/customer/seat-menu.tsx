@@ -4,19 +4,25 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { api, errorText } from "@/lib/api";
-import { MAX_QTY_PER_LINE } from "@/lib/config";
+import { MAX_NAME_LENGTH, MAX_QTY_PER_LINE, QR_KIND_INFO } from "@/lib/config";
 import { formatINR } from "@/lib/money";
-import type { PublicMenu } from "@/lib/server/public";
+import type { SeatMenuData } from "@/lib/server/public";
 import type { Dish } from "@/lib/types";
 import { Modal } from "../modal";
-import { Alert, Button, EmptyState, Textarea, VegMark, cx } from "../ui";
+import { Alert, Button, EmptyState, Input, Textarea, VegMark, cx } from "../ui";
 import { MenuHeader, RatingTag } from "./menu-header";
 import { drop, load, newKey, save, type SeatOrderRef } from "./storage";
 
-type Menu = PublicMenu & { seat: { label: string; number: number; active: boolean } };
+type Menu = SeatMenuData;
+const NAME_KEY = "dx-guest-name";
 
 export function SeatMenu({ token, menu }: { token: string; menu: Menu }) {
   const router = useRouter();
+  const kind = menu.seat.kind;
+  const needsName = QR_KIND_INFO[kind].needsName;
+  const headerLabel = kind === "takeaway" ? "Parcel order" : menu.seat.label;
+  const [name, setName] = useState("");
+  const [nameError, setNameError] = useState("");
   const cartKey = `dx-cart-${token}`;
   const idemKey = `dx-idem-${token}`;
   const ordersKey = `dx-orders-${token}`;
@@ -36,6 +42,7 @@ export function SeatMenu({ token, menu }: { token: string; menu: Menu }) {
     for (const [id, q] of Object.entries(saved)) if (dishById.get(id)?.available && q > 0) valid[id] = Math.min(q, MAX_QTY_PER_LINE);
     setCart(valid);
     setPast(load<SeatOrderRef[]>(ordersKey, []).filter((o) => Date.now() - o.at < 12 * 3600000));
+    setName(load<string>(NAME_KEY, ""));
   }, [cartKey, ordersKey, dishById]);
 
   const setQty = (id: string, q: number) => {
@@ -56,6 +63,14 @@ export function SeatMenu({ token, menu }: { token: string; menu: Menu }) {
   const total = lines.reduce((s, l) => s + l.qty * l.dish.pricePaise, 0);
 
   async function place() {
+    const guest = name.replace(/\s+/g, " ").trim();
+    if (needsName && !/\p{L}/u.test(guest)) {
+      setNameError("Please write your name. We call it out when your order is ready.");
+      document.getElementById("guest-name")?.focus();
+      return;
+    }
+    setNameError("");
+    if (needsName) save(NAME_KEY, guest);
     setBusy(true);
     setError("");
     let key = load<string>(idemKey, "", true);
@@ -67,7 +82,13 @@ export function SeatMenu({ token, menu }: { token: string; menu: Menu }) {
       const r = await api<{ number: number; publicToken: string }>("/api/orders", {
         method: "POST",
         auth: false,
-        body: { seatToken: token, idempotencyKey: key, note, items: lines.map((l) => ({ dishId: l.dish.id, qty: l.qty })) },
+        body: {
+          seatToken: token,
+          idempotencyKey: key,
+          note,
+          customerName: needsName ? guest : "",
+          items: lines.map((l) => ({ dishId: l.dish.id, qty: l.qty })),
+        },
       });
       drop(idemKey, true);
       drop(cartKey);
@@ -83,7 +104,7 @@ export function SeatMenu({ token, menu }: { token: string; menu: Menu }) {
 
   return (
     <div className="min-h-dvh bg-paper pb-28">
-      <MenuHeader r={menu.restaurant} seatLabel={menu.seat.label} />
+      <MenuHeader r={menu.restaurant} seatLabel={headerLabel} />
 
       {!menu.ordering.ok && (
         <div className="mx-auto max-w-2xl px-4 pt-4">
@@ -96,7 +117,7 @@ export function SeatMenu({ token, menu }: { token: string; menu: Menu }) {
       {past.length > 0 && (
         <div className="mx-auto max-w-2xl px-4 pt-4">
           <div className="rounded-lg border border-line bg-white px-4 py-3 text-sm">
-            <p className="font-semibold">Your orders from this seat</p>
+            <p className="font-semibold">{needsName ? "Your recent orders" : "Your orders from this seat"}</p>
             <div className="mt-1.5 flex flex-wrap gap-2">
               {past.map((p) => (
                 <Link key={p.token} href={`/o/${p.token}`} className="rounded-md border border-line px-2.5 py-1 font-medium hover:border-ink/40">
@@ -192,13 +213,13 @@ export function SeatMenu({ token, menu }: { token: string; menu: Menu }) {
               <p className="text-lg font-bold">{formatINR(total)}</p>
             </div>
             <Button size="lg" onClick={() => setOpen(true)} data-testid="view-cart">
-              <ShoppingBag className="size-4" /> View order
+              <ShoppingBag className="size-4" /> {needsName ? "View bill" : "View order"}
             </Button>
           </div>
         </div>
       )}
 
-      <Modal open={open} locked={busy} onClose={() => setOpen(false)} title={`Your order · ${menu.seat.label}`}>
+      <Modal open={open} locked={busy} onClose={() => setOpen(false)} title={needsName ? "Your bill" : `Your order · ${menu.seat.label}`}>
         <ul className="divide-y divide-line">
           {lines.map((l) => (
             <li key={l.dish.id} className="flex items-center gap-3 py-3">
@@ -211,6 +232,32 @@ export function SeatMenu({ token, menu }: { token: string; menu: Menu }) {
             </li>
           ))}
         </ul>
+        {needsName && (
+          <div className="mt-4">
+            <label className="block text-sm font-semibold" htmlFor="guest-name">
+              Your name
+            </label>
+            <Input
+              id="guest-name"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                if (nameError) setNameError("");
+              }}
+              maxLength={MAX_NAME_LENGTH}
+              autoComplete="given-name"
+              enterKeyHint="done"
+              placeholder="e.g. Shivansh"
+              className="mt-1.5"
+              aria-invalid={!!nameError}
+              aria-describedby="guest-name-help"
+              data-testid="guest-name"
+            />
+            <p id="guest-name-help" className={cx("mt-1 text-xs", nameError ? "font-semibold text-bad" : "text-muted")}>
+              {nameError || "The kitchen calls this name when your order is ready."}
+            </p>
+          </div>
+        )}
         <label className="mt-4 block text-sm font-semibold" htmlFor="note">
           Instructions for the kitchen
         </label>
@@ -221,14 +268,16 @@ export function SeatMenu({ token, menu }: { token: string; menu: Menu }) {
             {formatINR(total)}
           </span>
         </div>
-        <p className="mt-1 text-xs text-muted">Pay at the counter. Final prices are confirmed by the restaurant.</p>
+        <p className="mt-1 text-xs text-muted">
+          {needsName ? "Check your bill, then confirm. Pay at the counter when you collect." : "Pay at the counter. Final prices are confirmed by the restaurant."}
+        </p>
         {error && (
           <Alert tone="bad" className="mt-4">
             {error}
           </Alert>
         )}
-        <Button size="lg" className="mt-5 w-full" onClick={place} loading={busy} disabled={!lines.length}>
-          Place order
+        <Button size="lg" className="mt-5 w-full" onClick={place} loading={busy} disabled={!lines.length} data-testid="place-order">
+          {needsName ? `Confirm and order · ${formatINR(total)}` : "Place order"}
         </Button>
       </Modal>
     </div>

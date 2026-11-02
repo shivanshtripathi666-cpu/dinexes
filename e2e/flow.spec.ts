@@ -1,5 +1,5 @@
 import { devices, expect, test, type BrowserContext, type Page } from "@playwright/test";
-import { AUTH, FS, PNG, addCategory, addDish, adminGet, adminPatchInt, idToken, register } from "./helpers";
+import { AUTH, FS, PNG, addCategory, addDish, adminGet, adminPatchInt, adminSetPlan, idToken, register } from "./helpers";
 
 /**
  * The complete flow from the product brief, against the Firebase emulators (real Auth, real
@@ -43,11 +43,12 @@ test("1-2. owner registers a restaurant and creates the menu", async ({ browser 
   await expect(p.getByRole("heading", { name: "Opening hours" })).toBeVisible();
   await p.getByRole("button", { name: "Save and continue" }).click();
 
-  // 3. Ten seats
-  await expect(p.getByRole("heading", { name: "Seats" })).toBeVisible();
-  await p.getByLabel("Number of seats to add").fill("10");
-  await p.getByRole("button", { name: "Add seats" }).click();
-  await expect(p.getByText("10 seats created.")).toBeVisible();
+  // 3. Ten dining seats (the trial includes every QR type)
+  await expect(p.getByRole("heading", { name: "QR codes" })).toBeVisible();
+  await expect(p.getByText("Stall / counter", { exact: true })).toBeVisible();
+  await p.getByLabel("Number of dining seats QR codes to add").fill("10");
+  await p.getByTestId("add-qr-dine").click();
+  await expect(p.getByText("10 QR codes created.")).toBeVisible();
   await p.getByRole("button", { name: "Continue" }).click();
 
   await expect(p.getByRole("heading", { name: "Menu" })).toBeVisible();
@@ -62,7 +63,8 @@ test("1-2. owner registers a restaurant and creates the menu", async ({ browser 
   await expect(p.getByText("Orders today")).toBeVisible();
   await expect(p.getByText("No sales yet")).toBeVisible();
   await expect(p.getByTestId("your-plan")).toContainText("ACTIVE");
-  await expect(p.getByTestId("choose-m6")).toContainText("₹1,499");
+  await expect(p.getByTestId("choose-premium")).toContainText("₹349");
+  await expect(p.getByTestId("choose-pro")).toContainText("₹249");
 });
 
 test("4. QR codes exist for all 10 seats", async () => {
@@ -235,6 +237,85 @@ test("12. another restaurant cannot see or change this order", async ({ browser,
   await expect(p.getByText("Your subscription has ended")).toBeVisible();
   await p.goto("/dashboard/billing");
   await expect(p.getByTestId("billing-status")).toHaveText("Expired");
+
+  // Pro plan: only stall / counter QR codes. The old dining seat stops taking orders; a counter QR works and needs a name.
+  await adminSetPlan(request, ridB, "pro", Date.now() + 30 * 86400000);
+  const dineNow = await request.post("/api/orders", { data: { seatToken: seatTokenB, idempotencyKey: `b-dine-${run}-abcdefgh`, note: "", items: [{ dishId: dish.id, qty: 1 }] } });
+  expect(dineNow.status()).toBe(403);
+  const addDine = await request.post("/api/seats", { headers: auth, data: { count: 1, kind: "dine" } });
+  expect(addDine.status()).toBe(403);
+  expect((await addDine.json()).code).toBe("not_in_plan");
+  expect((await request.post("/api/seats", { headers: auth, data: { count: 1, kind: "takeaway" } })).status()).toBe(403);
+  expect((await request.post("/api/seats", { headers: auth, data: { count: 1, kind: "counter" } })).status()).toBe(201);
+  const all = await (await request.get(`${FS}/restaurants/${ridB}/seats`, { headers: { Authorization: "Bearer owner" } })).json();
+  const counter = (all.documents as { fields: Record<string, { stringValue?: string }> }[]).find((x) => x.fields.kind?.stringValue === "counter")!;
+  expect(counter.fields.label.stringValue).toBe("Counter 1");
+  const ct = counter.fields.token.stringValue;
+  const noName = await request.post("/api/orders", { data: { seatToken: ct, idempotencyKey: `b-c0-${run}-abcdefgh`, note: "", items: [{ dishId: dish.id, qty: 1 }] } });
+  expect(noName.status()).toBe(400);
+  expect((await noName.json()).code).toBe("name_required");
+  const junkName = await request.post("/api/orders", { data: { seatToken: ct, customerName: "1234 <>!", idempotencyKey: `b-c1-${run}-abcdefgh`, note: "", items: [{ dishId: dish.id, qty: 1 }] } });
+  expect(junkName.status()).toBe(400);
+  const named = await request.post("/api/orders", { data: { seatToken: ct, customerName: "  Ravi <script>  ", idempotencyKey: `b-c2-${run}-abcdefgh`, note: "", items: [{ dishId: dish.id, qty: 2 }] } });
+  expect(named.status()).toBe(201);
+  const st = await adminGet(request, `orderStatus/${(await named.json()).publicToken}`);
+  expect(st.customerName.stringValue).toBe("Ravi script");
+  expect(st.kind.stringValue).toBe("counter");
+  await p.goto("/dashboard/qr");
+  await expect(p.getByTestId("qr-upgrade")).toBeVisible();
+  await ctx.close();
+});
+
+test("stall QR: guest writes a name, sees the bill, the kitchen hears the name and calls it when ready", async ({ browser }) => {
+  const p = ownerPage;
+  await p.goto("/dashboard/qr");
+  await p.getByTestId("qr-tab-counter").click();
+  await p.getByTestId("add-qr-counter").click();
+  const card = p.locator('[data-qr-kind="counter"]').first();
+  await expect(card).toBeVisible();
+  const url = (await card.getAttribute("data-seat-url")) || "";
+  expect(url).toMatch(/\/t\/[A-Za-z0-9]{22}$/);
+
+  const ctx = await browser.newContext({ ...devices["Pixel 7"] });
+  const g = await ctx.newPage();
+  await g.goto(url);
+  await expect(g.getByTestId("seat-label")).toHaveText("Counter 1");
+  await g.getByRole("button", { name: "Add Cold Coffee" }).click();
+  await g.getByTestId("view-cart").click();
+  await expect(g.getByRole("dialog")).toContainText("Your bill");
+  await expect(g.getByTestId("cart-total")).toHaveText("₹90");
+  await g.getByTestId("place-order").click();
+  await expect(g.getByText("Please write your name.")).toBeVisible();
+  await g.getByTestId("guest-name").fill("Shivansh");
+  await expect(g.getByTestId("place-order")).toHaveText("Confirm and order · ₹90");
+  await g.getByTestId("place-order").click();
+  await g.waitForURL("**/o/**");
+  await expect(g.getByTestId("order-name")).toHaveText("Shivansh");
+  await expect(g.getByTestId("pickup-box")).toContainText("We will call your name");
+  const n = Number((await g.getByRole("heading", { name: /Order #\d+/ }).textContent())!.replace(/\D/g, ""));
+
+  const ticket = kitchenPage.getByTestId(`ticket-${n}`);
+  await expect(ticket.getByTestId("ticket-seat")).toHaveText("Shivansh");
+  await expect(ticket.getByTestId("ticket-kind")).toContainText("Counter 1");
+  await expect
+    .poll(async () => kitchenPage.evaluate(() => (window.__dxSpoken || []).join(" | ")), { timeout: 20_000 })
+    .toContain(`Shivansh. one Cold Coffee. Order number ${n}.`);
+
+  await ticket.getByRole("button", { name: "Accept" }).click();
+  await ticket.getByRole("button", { name: "Start preparing" }).click();
+  await ticket.getByRole("button", { name: "Mark ready" }).click();
+  await expect(g.getByTestId("pickup-box")).toContainText("Ready! Please collect");
+  await expect
+    .poll(async () => kitchenPage.evaluate(() => (window.__dxSpoken || []).join(" | ")), { timeout: 20_000 })
+    .toContain(`Shivansh, your order is ready. Order number ${n}.`);
+  await counterPage.reload();
+  await expect(counterPage.getByTestId(`counter-order-${n}`)).toContainText("Shivansh");
+
+  // The name is remembered on this phone for the next order.
+  await g.goto(url);
+  await g.getByRole("button", { name: "Add Raita" }).click();
+  await g.getByTestId("view-cart").click();
+  await expect(g.getByTestId("guest-name")).toHaveValue("Shivansh");
   await ctx.close();
 });
 
@@ -305,20 +386,35 @@ test("13-14. owner adds 3 staff (4 logins), the fifth is refused; staff log in, 
   await kctx.close();
 });
 
-test("15-16. trial status and the ₹399 plan", async ({ page }) => {
+test("15-16. trial status and the Pro and Premium plans", async ({ page }) => {
   const p = ownerPage;
   await p.goto("/dashboard/billing");
   await expect(p.getByTestId("billing-status")).toHaveText("Free trial");
   await expect(p.getByTestId("billing-detail")).toContainText("7 days left");
-  await expect(p.getByTestId("billing-price")).toHaveText("₹399");
-  await expect(p.getByTestId("plan-m3")).toContainText("₹899");
-  await expect(p.getByTestId("plan-m6")).toContainText("₹1,499");
+  await expect(p.getByTestId("billing-price")).toHaveText("₹349");
+  await expect(p.getByTestId("plan-prem3")).toContainText("₹799");
+  await expect(p.getByTestId("plan-prem6")).toContainText("₹1,299");
+  await p.getByTestId("tier-switch-pro").click();
+  await expect(p.getByTestId("billing-price")).toHaveText("₹249");
+  await expect(p.getByTestId("plan-pro3")).toContainText("₹649");
+  await expect(p.getByTestId("plan-pro6")).toContainText("₹899");
   await expect(p.getByTestId("payments-placeholder")).toBeVisible();
 
   await page.goto("/pricing");
-  await expect(page.getByTestId("plan-price")).toHaveText("₹399");
-  await expect(page.getByTestId("plan-m3")).toContainText("Save ₹298");
-  await expect(page.getByTestId("plan-m6")).toContainText("Save ₹895");
+  await expect(page.getByTestId("plan-price-pro")).toHaveText("₹249");
+  await expect(page.getByTestId("plan-price-premium")).toHaveText("₹349");
+  // Crossed-out prices are the real monthly price x months, so the savings shown are exact.
+  await expect(page.getByTestId("save-pro3")).toHaveText("You save ₹98");
+  await page.getByTestId("duration-pro6").click();
+  await expect(page.getByTestId("save-pro6")).toHaveText("You save ₹595");
+  await expect(page.getByTestId("save-prem3")).toHaveText("You save ₹248");
+  await page.getByTestId("duration-prem6").click();
+  await expect(page.getByTestId("save-prem6")).toHaveText("You save ₹795");
+  await page.getByTestId("start-prem6").click();
+  await page.waitForURL("**/register?plan=prem6");
+  await page.goto("/pricing");
+  // 1 person at ₹9,000 a month for a year, minus two 6-month Premium plans: 1,08,000 - 2,598.
+  await expect(page.getByTestId("savings-amount")).toHaveText("₹1,05,402");
   for (const path of ["/privacy", "/terms", "/refund"]) {
     await page.goto(path);
     await expect(page.locator("h1")).toBeVisible();

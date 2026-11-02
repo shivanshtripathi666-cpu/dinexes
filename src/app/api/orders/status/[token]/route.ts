@@ -16,6 +16,8 @@ export const GET = handle(async (_req: Request, ctx: { params: Promise<{ token: 
     rated: !!x.rated,
     number: x.number,
     seatLabel: x.seatLabel,
+    kind: x.kind === "takeaway" || x.kind === "counter" ? x.kind : "dine",
+    customerName: x.customerName || "",
     items: x.items,
     totalPaise: x.totalPaise,
     status: x.status,

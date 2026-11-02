@@ -1,12 +1,12 @@
 "use client";
 import { BadgeCheck } from "lucide-react";
 import Link from "next/link";
-import { PLANS, TRIAL_DAYS, planSaving } from "@/lib/config";
+import { TIERS, TRIAL_DAYS, planPerMonth, plansOf, type Tier } from "@/lib/config";
 import { formatDate } from "@/lib/time";
 import { useDash } from "./dash-context";
 import { cx } from "./ui";
 
-/** The owner's plan at a glance: the free trial (active from registration) and the paid plans. */
+/** The owner's plan at a glance: the free trial (active from registration) and the two paid plans. */
 export function YourPlan() {
   const d = useDash();
   const a = d.access;
@@ -19,8 +19,8 @@ export function YourPlan() {
           Billing
         </Link>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className={cx("rounded-xl border p-4", trialActive ? "border-ok bg-ok-soft" : a.state === "active" ? "border-line bg-ivory" : "border-line bg-ivory")}>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className={cx("rounded-xl border p-4", trialActive ? "border-ok bg-ok-soft" : "border-line bg-ivory")}>
           <p className="flex items-center justify-between text-sm font-semibold">
             Free trial
             {trialActive ? (
@@ -33,23 +33,27 @@ export function YourPlan() {
           </p>
           <p className="mt-2 text-2xl font-bold">₹0</p>
           <p className="mt-1 text-xs text-muted">
-            {trialActive ? `${a.daysLeft} of ${TRIAL_DAYS} days left · ends ${formatDate(a.endsAt)}` : `${TRIAL_DAYS} days, started when you registered`}
+            {trialActive ? `${a.daysLeft} of ${TRIAL_DAYS} days left · ends ${formatDate(a.endsAt)} · everything included` : `${TRIAL_DAYS} days, started when you registered`}
           </p>
         </div>
-        {PLANS.map((p) => {
-          const current = a.state === "active";
+        {(["pro", "premium"] as Tier[]).map((t) => {
+          const current = a.state === "active" && a.tier === t;
+          const best = plansOf(t)[2];
           return (
             <Link
-              key={p.id}
-              href={`/dashboard/billing?plan=${p.id}`}
-              className={cx("tap relative rounded-xl border bg-white p-4", p.tag === "Best value" ? "border-ink" : "border-line")}
-              data-testid={`choose-${p.id}`}
+              key={t}
+              href={`/dashboard/billing?plan=${plansOf(t)[1].id}`}
+              className={cx("tap relative rounded-xl border bg-white p-4", current ? "border-ok ring-2 ring-ok/30" : t === "premium" ? "border-ink" : "border-line")}
+              data-testid={`choose-${t}`}
             >
-              {p.tag && <span className="absolute -top-2.5 right-3 rounded bg-amber px-1.5 py-0.5 text-[10px] font-bold text-ink">{p.tag}</span>}
-              <p className="text-sm font-semibold">{p.label}</p>
-              <p className="mt-2 text-2xl font-bold">₹{p.priceInr.toLocaleString("en-IN")}</p>
+              {current && <span className="absolute -top-2.5 right-3 rounded bg-ok px-1.5 py-0.5 text-[10px] font-bold text-white">YOUR PLAN</span>}
+              <p className="text-sm font-semibold">{TIERS[t].name}</p>
+              <p className="mt-2 text-2xl font-bold">
+                ₹{TIERS[t].monthlyInr}
+                <span className="text-sm font-medium text-muted"> / month</span>
+              </p>
               <p className="mt-1 text-xs text-muted">
-                {planSaving(p) > 0 ? <span className="font-semibold text-ok">Save ₹{planSaving(p).toLocaleString("en-IN")}</span> : "Pay monthly"}
+                {t === "pro" ? "Stall / counter QR" : "Dining, parcel and stall QR"} · as low as ₹{planPerMonth(best)}/month for 6 months
                 {" · "}
                 {current ? "adds after your plan" : trialActive ? "starts after trial" : "start now"}
               </p>
