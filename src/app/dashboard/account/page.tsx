@@ -38,7 +38,8 @@ export default function AccountPage() {
         /* ignore */
       }
       await signOut().catch(() => undefined);
-      router.replace("/?deleted=1");
+      // Full page load: beats the dashboard's own "signed out, go to login" redirect.
+      window.location.replace("/?deleted=1");
     } catch (e) {
       if (e instanceof ApiError && e.code === "recent_login") setNeedsLogin(true);
       setError(errorText(e));
