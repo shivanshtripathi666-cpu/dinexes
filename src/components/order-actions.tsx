@@ -7,7 +7,8 @@ import { Button } from "./ui";
 
 const NEXT_LABEL: Partial<Record<OrderStatus, { to: OrderStatus; label: string }>> = {
   new: { to: "accepted", label: "Accept" },
-  accepted: { to: "preparing", label: "Start preparing" },
+  // Two taps for the kitchen: Accept, then Mark ready. ("preparing" stays only for older orders.)
+  accepted: { to: "ready", label: "Mark ready" },
   preparing: { to: "ready", label: "Mark ready" },
   ready: { to: "served", label: "Mark served" },
 };

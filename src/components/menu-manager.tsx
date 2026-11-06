@@ -70,15 +70,15 @@ export function MenuManager({ rid, canEdit = true }: { rid: string; canEdit?: bo
       {(error || err) && <Alert tone="bad">{error || err}</Alert>}
       {canEdit && (
         <form
-          className="flex gap-2"
+          className="flex flex-wrap gap-2 sm:flex-nowrap"
           onSubmit={async (e) => {
             e.preventDefault();
             if (!newCat.trim()) return;
             if (await run("cat", () => api("/api/menu/categories", { method: "POST", body: { name: newCat } }))) setNewCat("");
           }}
         >
-          <Input aria-label="New category name" placeholder="New category, e.g. Starters" value={newCat} onChange={(e) => setNewCat(e.target.value)} maxLength={40} />
-          <Button type="submit" variant="dark" loading={busy === "cat"}>
+          <Input aria-label="New category name" placeholder="New category, e.g. Starters" className="min-w-0 flex-1" value={newCat} onChange={(e) => setNewCat(e.target.value)} maxLength={40} />
+          <Button type="submit" variant="dark" loading={busy === "cat"} className="w-full sm:w-auto">
             <Plus className="size-4" /> Add category
           </Button>
         </form>

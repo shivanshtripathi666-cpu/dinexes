@@ -1,6 +1,6 @@
 "use client";
 import { AlertsBar } from "./alerts-bar";
-import { BarChart3, ChefHat, CreditCard, Ellipsis, LayoutDashboard, LogOut, Menu as MenuIcon, QrCode, Receipt, Settings, Users, UtensilsCrossed, X } from "lucide-react";
+import { BarChart3, ChefHat, CreditCard, Ellipsis, LayoutDashboard, LogOut, Menu as MenuIcon, QrCode, Receipt, Settings, UserRound, Users, UtensilsCrossed, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -21,6 +21,7 @@ const NAV: { href: string; label: string; icon: typeof LayoutDashboard; perm: Pe
   { href: "/dashboard/staff", label: "Staff", icon: Users, perm: "staff.manage" },
   { href: "/dashboard/billing", label: "Billing", icon: CreditCard, perm: "billing.manage" },
   { href: "/dashboard/settings", label: "Settings", icon: Settings, perm: "settings.edit" },
+  { href: "/dashboard/account", label: "Account", icon: UserRound, perm: null },
 ];
 
 export function DashShell({ children }: { children: React.ReactNode }) {

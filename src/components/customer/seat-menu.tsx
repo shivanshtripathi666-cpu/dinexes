@@ -36,6 +36,26 @@ export function SeatMenu({ token, menu }: { token: string; menu: Menu }) {
 
   const dishById = useMemo(() => new Map(menu.dishes.map((d) => [d.id, d])), [menu.dishes]);
 
+  // Keep the category bar in step with what is on screen, and keep the active chip visible.
+  useEffect(() => {
+    if (menu.categories.length < 2 || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        const top = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+        if (top) setActiveCat(top.target.id.replace(/^c-/, ""));
+      },
+      { rootMargin: "-80px 0px -60% 0px" },
+    );
+    for (const c of menu.categories) {
+      const el = document.getElementById(`c-${c.id}`);
+      if (el) io.observe(el);
+    }
+    return () => io.disconnect();
+  }, [menu.categories]);
+  useEffect(() => {
+    document.getElementById(`chip-${activeCat}`)?.scrollIntoView({ block: "nearest", inline: "center" });
+  }, [activeCat]);
+
   useEffect(() => {
     const saved = load<Record<string, number>>(cartKey, {});
     const valid: Record<string, number> = {};
@@ -108,7 +128,7 @@ export function SeatMenu({ token, menu }: { token: string; menu: Menu }) {
 
       {!menu.ordering.ok && (
         <div className="mx-auto max-w-2xl px-4 pt-4">
-          <Alert tone="amber" title="Online ordering is not available">
+          <Alert tone="amber" title={/^Closed/.test(menu.ordering.reason) ? "We are closed right now" : "Online ordering is not available"}>
             {menu.ordering.reason}
           </Alert>
         </div>
@@ -135,6 +155,7 @@ export function SeatMenu({ token, menu }: { token: string; menu: Menu }) {
             {menu.categories.map((c) => (
               <a
                 key={c.id}
+                id={`chip-${c.id}`}
                 href={`#c-${c.id}`}
                 onClick={() => setActiveCat(c.id)}
                 className={cx(
@@ -149,7 +170,8 @@ export function SeatMenu({ token, menu }: { token: string; menu: Menu }) {
         </nav>
       )}
 
-      <main className="mx-auto max-w-2xl px-4 py-5">
+      {/* Room at the bottom so the cart bar never covers the last categories and dishes. */}
+      <main className={cx("mx-auto max-w-2xl px-4 py-5", count > 0 && menu.ordering.ok ? "pb-36" : "pb-10")}>
         {menu.categories.length === 0 && (
           <EmptyState icon={<UtensilsCrossed className="size-7" />} title="The menu is being prepared">
             Please ask the staff to take your order.

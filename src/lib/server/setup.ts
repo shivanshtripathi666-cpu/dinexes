@@ -5,6 +5,7 @@ import type { Hours } from "@/lib/types";
 import { db } from "./firebaseAdmin";
 import { HttpError } from "./http";
 import { RESERVED_SLUGS, randomToken, slugify } from "./ids";
+import { trialAlreadyUsed } from "./account";
 import type { SignedInUser } from "./auth";
 
 export const DEFAULT_HOURS: Hours[] = DAYS.map((day) => ({ day, open: "10:00", close: "23:00", closed: false }));
@@ -20,6 +21,8 @@ export async function createRestaurant(user: SignedInUser, input: { name: string
   const userRef = f.doc(`users/${user.uid}`);
   const restRef = f.collection("restaurants").doc();
   const now = Date.now();
+  // One free trial per email / phone, even after deleting an account and signing up again.
+  const trialEndsAt = (await trialAlreadyUsed(user)) ? now : now + TRIAL_DAYS * 86400000;
 
   return f.runTransaction(async (tx) => {
     const u = await tx.get(userRef);
@@ -55,9 +58,10 @@ export async function createRestaurant(user: SignedInUser, input: { name: string
       orderSeq: 100,
       onboarded: false,
       createdAt: now,
-      trialEndsAt: now + TRIAL_DAYS * 86400000,
+      trialEndsAt,
       subscription: { status: "trialing", currentPeriodEnd: null },
-      settings: { voiceLang: "en", acceptingOrders: true },
+      settings: { voiceLang: "en", acceptingOrders: true, followHours: false },
+      closedDates: [],
     });
     tx.set(f.doc(`slugs/${slug}`), { rid: restRef.id });
     tx.set(f.doc(`restaurants/${restRef.id}/members/${user.uid}`), {

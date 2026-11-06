@@ -1,10 +1,11 @@
 "use client";
 import { sendPasswordResetEmail, signInWithEmailAndPassword, signOut } from "firebase/auth";
-import { ChefHat, Store } from "lucide-react";
+import { ChefHat, Smartphone, Store } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { PasswordInput } from "@/components/password-input";
+import { PhoneLogin } from "@/components/phone-login";
 import { useSession } from "@/components/session";
 import { Alert, Button, Field, Input, cx } from "@/components/ui";
 import { api, errorText } from "@/lib/api";
@@ -31,6 +32,7 @@ function Login() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+  const [usePhone, setUsePhone] = useState(false);
 
   useEffect(() => {
     if (!loading && me?.restaurant && !busy) router.replace(homeFor(me));
@@ -149,6 +151,15 @@ function Login() {
           <Button type="button" variant="outline" size="lg" className="mt-6 w-full bg-white" onClick={google} disabled={busy} data-testid="google-login">
             <GoogleMark /> Continue with Google
           </Button>
+          {usePhone ? (
+            <div className="mt-4 rounded-xl border border-line bg-white p-4">
+              <PhoneLogin cta="Sign in" onSignedIn={() => afterSignIn("owner")} />
+            </div>
+          ) : (
+            <Button type="button" variant="outline" size="lg" className="mt-3 w-full bg-white" onClick={() => setUsePhone(true)} disabled={busy} data-testid="phone-login-open">
+              <Smartphone className="size-4" /> Continue with mobile number (OTP)
+            </Button>
+          )}
           <div className="mt-6 flex items-center gap-3 text-xs font-semibold uppercase tracking-wide text-muted">
             <span className="h-px flex-1 bg-line" /> or with email <span className="h-px flex-1 bg-line" />
           </div>

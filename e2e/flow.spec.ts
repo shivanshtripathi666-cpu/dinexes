@@ -131,8 +131,7 @@ test("10-11. status changes reach the guest live", async () => {
   const ticket = kitchenPage.getByTestId(`ticket-${orderNo}`);
   await ticket.getByRole("button", { name: "Accept" }).click();
   await expect(guestPage.getByTestId("order-status")).toHaveText("Accepted");
-  await ticket.getByRole("button", { name: "Start preparing" }).click();
-  await expect(guestPage.getByTestId("order-status")).toHaveText("Preparing");
+  await expect(ticket.getByRole("button", { name: "Start preparing" })).toHaveCount(0);
   await ticket.getByRole("button", { name: "Mark ready" }).click();
   await expect(guestPage.getByTestId("order-status")).toHaveText("Ready");
 
@@ -302,7 +301,6 @@ test("stall QR: guest writes a name, sees the bill, the kitchen hears the name a
     .toContain(`Shivansh. one Cold Coffee. Order number ${n}.`);
 
   await ticket.getByRole("button", { name: "Accept" }).click();
-  await ticket.getByRole("button", { name: "Start preparing" }).click();
   await ticket.getByRole("button", { name: "Mark ready" }).click();
   await expect(g.getByTestId("pickup-box")).toContainText("Ready! Please collect");
   await expect
@@ -423,6 +421,54 @@ test("15-16. trial status and the Pro and Premium plans", async ({ page }) => {
   expect(health.status(), await health.text()).toBe(200);
 });
 
+test("closed dates: the QR menu says when it opens again; owner can delete the account", async ({ browser, request }) => {
+  const C = { name: "Chetan Rao", email: `owner-c-${run}@example.com`, password: "Passw0rd-c1", restaurant: "Corner Chai", phone: "9876511111", city: "Varanasi" };
+  const ctx = await browser.newContext();
+  const p = await ctx.newPage();
+  await register(p, C);
+  const c = await idToken(request, C.email, C.password);
+  const auth = { Authorization: `Bearer ${c.token}` };
+  const ridC = (await adminGet(request, `users/${c.uid}`)).rid.stringValue!;
+  expect((await request.post("/api/seats", { headers: auth, data: { count: 1 } })).status()).toBe(201);
+  const cat = await (await request.post("/api/menu/categories", { headers: auth, data: { name: "Tea" } })).json();
+  const cat2 = await request.post("/api/menu/categories", { headers: auth, data: { name: "Snacks" } });
+  expect(cat2.status(), "a second category can be added").toBe(201);
+  const dish = await (await request.post("/api/menu/dishes", { headers: auth, data: { categoryId: cat.id, name: "Ginger Tea", price: "15" } })).json();
+  const seats = await request.get(`${FS}/restaurants/${ridC}/seats`, { headers: { Authorization: "Bearer owner" } });
+  const token = (await seats.json()).documents[0].fields.token.stringValue;
+
+  // Closed today: the menu still shows, ordering is off and guests see when it opens.
+  await p.goto("/dashboard/settings");
+  await p.getByTestId("add-closed-date").click();
+  await expect(p.getByTestId("closed-dates")).toContainText("Today");
+  const g = await ctx.newPage();
+  await g.goto(`/t/${token}`);
+  await expect(g.getByText("We are closed right now")).toBeVisible();
+  await expect(g.getByText(/Closed today\. We open tomorrow/)).toBeVisible();
+  const blocked = await request.post("/api/orders", { data: { seatToken: token, idempotencyKey: `c-no-${run}-abcdefgh`, note: "", items: [{ dishId: dish.id, qty: 1 }] } });
+  expect(blocked.status()).toBe(403);
+
+  // Open again.
+  await p.getByRole("button", { name: /^Open again on/ }).click();
+  await expect(p.getByTestId("closed-dates")).toHaveCount(0);
+  await g.reload();
+  await expect(g.getByText("We are closed right now")).toHaveCount(0);
+
+  // Delete the account: restaurant, QR codes and login are gone.
+  await p.goto("/dashboard/account");
+  await p.getByTestId("delete-account").click();
+  await p.getByTestId("delete-confirm").fill(C.restaurant);
+  await p.getByTestId("delete-confirm-button").click();
+  await p.waitForURL("**/?deleted=1");
+  const signIn = await request.post(`${AUTH}/accounts:signInWithPassword?key=demo-key`, { data: { email: C.email, password: C.password, returnSecureToken: true } });
+  expect(signIn.status()).toBe(400);
+  const gone = await request.get(`${FS}/restaurants/${ridC}`, { headers: { Authorization: "Bearer owner" } });
+  expect(gone.status()).toBe(404);
+  await g.reload();
+  await expect(g.getByRole("button", { name: /^Add / })).toHaveCount(0);
+  await ctx.close();
+});
+
 test("17. owner pages work on a phone", async ({ browser }) => {
   const ctx = await browser.newContext({ ...devices["Pixel 7"] });
   const p = await ctx.newPage();
@@ -431,7 +477,7 @@ test("17. owner pages work on a phone", async ({ browser }) => {
   await p.getByLabel("Password", { exact: true }).fill(A.password);
   await p.getByRole("button", { name: "Sign in as owner" }).click();
   await p.waitForURL("**/dashboard");
-  for (const path of ["/dashboard", "/dashboard/kitchen", "/dashboard/counter", "/dashboard/menu", "/dashboard/qr", "/dashboard/staff", "/dashboard/billing", "/dashboard/settings", "/dashboard/reports"]) {
+  for (const path of ["/dashboard", "/dashboard/kitchen", "/dashboard/counter", "/dashboard/menu", "/dashboard/qr", "/dashboard/staff", "/dashboard/billing", "/dashboard/settings", "/dashboard/reports", "/dashboard/account"]) {
     await p.goto(path);
     await expect(p.locator("main h1").first()).toBeVisible();
     const fits = await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);

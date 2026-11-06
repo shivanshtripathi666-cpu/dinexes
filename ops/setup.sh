@@ -143,6 +143,8 @@ api PATCH "$IDT/admin/v2/projects/$P/config?updateMask=signIn.email.enabled,sign
 api PATCH "$IDT/admin/v2/projects/$P/config?updateMask=passwordPolicyConfig,emailPrivacyConfig" \
   '{"passwordPolicyConfig":{"passwordPolicyEnforcementState":"ENFORCE","forceUpgradeOnSignin":false,"passwordPolicyVersions":[{"customStrengthOptions":{"minPasswordLength":8,"maxPasswordLength":64,"containsNumericCharacter":true}}]},"emailPrivacyConfig":{"enableImprovedEmailPrivacy":true}}' >/dev/null
 api PATCH "$IDT/admin/v2/projects/$P/config?updateMask=signIn.phoneNumber.enabled" '{"signIn":{"phoneNumber":{"enabled":true}}}' >/dev/null
+# OTP SMS only to Indian numbers: stops SMS-fraud bills from other countries.
+api PATCH "$IDT/admin/v2/projects/$P/config?updateMask=smsRegionConfig" '{"smsRegionConfig":{"allowlistOnly":{"allowedRegions":["IN"]}}}' >/dev/null
 WEB_CLIENT_ID=$(api GET "$IDT/admin/v2/projects/$P/defaultSupportedIdpConfigs/google.com" | js "d.get('clientId','') if d.get('enabled') else ''")
 ok "email and phone logins on (passwords: 8+ characters with a number; emails cannot be probed)"
 if [ -z "$WEB_CLIENT_ID" ]; then

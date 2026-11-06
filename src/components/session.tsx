@@ -2,7 +2,7 @@
 import { onAuthStateChanged, signOut as fbSignOut, type User } from "firebase/auth";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { ApiError, api } from "@/lib/api";
-import { fb } from "@/lib/firebase/client";
+import { clearLocalData, fb } from "@/lib/firebase/client";
 import type { MeResponse } from "@/lib/types";
 
 interface Session {
@@ -71,6 +71,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     const { disablePushOnThisDevice } = await import("@/lib/push-client");
     await disablePushOnThisDevice();
     await fbSignOut(fb().auth);
+    await clearLocalData();
     (window as unknown as { DinexesApp?: { signOut?: () => void } }).DinexesApp?.signOut?.();
     setMe(null);
   }, []);

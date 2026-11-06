@@ -14,15 +14,13 @@ import { Alert, Button, Textarea, buttonClass, cx } from "../ui";
 type Step = { s: OrderStatus; label: string; text: string; icon: typeof Check };
 const DINE_STEPS: Step[] = [
   { s: "new", label: "Order received", text: "The kitchen has your order.", icon: Clock },
-  { s: "accepted", label: "Accepted", text: "The kitchen has accepted your order.", icon: Check },
-  { s: "preparing", label: "Preparing", text: "Your food is being prepared.", icon: ChefHat },
+  { s: "accepted", label: "Accepted", text: "The kitchen accepted your order and is preparing it.", icon: ChefHat },
   { s: "ready", label: "Ready", text: "Your food is ready and will be served shortly.", icon: HandPlatter },
   { s: "served", label: "Served", text: "Enjoy your meal.", icon: Check },
 ];
 const PICKUP_STEPS: Step[] = [
   { s: "new", label: "Order received", text: "The kitchen has your order.", icon: Clock },
-  { s: "accepted", label: "Accepted", text: "The kitchen has accepted your order.", icon: Check },
-  { s: "preparing", label: "Preparing", text: "Your order is being made.", icon: ChefHat },
+  { s: "accepted", label: "Accepted", text: "Your order is accepted and being made.", icon: ChefHat },
   { s: "ready", label: "Ready to collect", text: "Your order is ready. Please collect it at the counter and pay there.", icon: HandPlatter },
   { s: "served", label: "Collected", text: "Thank you! Enjoy.", icon: Check },
 ];
@@ -72,7 +70,9 @@ export function OrderStatusView({ token, initial }: { token: string; initial: Pu
 
   const pickup = o.kind === "takeaway" || o.kind === "counter";
   const STEPS = pickup ? PICKUP_STEPS : DINE_STEPS;
-  const idx = STEPS.findIndex((x) => x.s === o.status);
+  // Older orders may still say "preparing"; show them as accepted.
+  const shown: OrderStatus = o.status === "preparing" ? "accepted" : o.status;
+  const idx = STEPS.findIndex((x) => x.s === shown);
   const cancelled = o.status === "cancelled";
   const ready = o.status === "ready";
 
@@ -105,7 +105,7 @@ export function OrderStatusView({ token, initial }: { token: string; initial: Pu
             {o.kind === "takeaway" ? "Parcel" : o.seatLabel} · placed at {formatTime(o.createdAt)}
           </p>
           <p className="mt-4 inline-flex items-center gap-2 rounded-md bg-amber px-3 py-1.5 text-sm font-bold text-ink" data-testid="order-status">
-            {STATUS_LABEL[o.status]}
+            {STATUS_LABEL[shown]}
           </p>
         </div>
       </header>

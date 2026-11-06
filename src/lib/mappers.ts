@@ -97,5 +97,6 @@ export const mapRestaurant = (id: string, x: D): Restaurant => ({
   trialEndsAt: a(x).trialEndsAt || 0,
   subscription: { status: a(x).subscription?.status || "trialing", currentPeriodEnd: a(x).subscription?.currentPeriodEnd || null },
   planTier: a(x).planTier === "pro" || a(x).planTier === "premium" ? a(x).planTier : "",
-  settings: { voiceLang: a(x).settings?.voiceLang === "hi" ? "hi" : "en", acceptingOrders: a(x).settings?.acceptingOrders !== false },
+  settings: { voiceLang: a(x).settings?.voiceLang === "hi" ? "hi" : "en", acceptingOrders: a(x).settings?.acceptingOrders !== false, followHours: a(x).settings?.followHours === true },
+  closedDates: Array.isArray(a(x).closedDates) ? (a(x).closedDates as string[]) : [],
 });

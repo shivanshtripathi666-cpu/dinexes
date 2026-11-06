@@ -30,7 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `window.__DX=${config};window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();window.__dxInstall=e;});`,
+            __html: `window.__DX=${config};window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();window.__dxInstall=e;});if("serviceWorker" in navigator&&!window.__DX.useEmulators){window.addEventListener("load",function(){navigator.serviceWorker.register("/firebase-messaging-sw.js").catch(function(){});});}`,
           }}
         />
       </head>

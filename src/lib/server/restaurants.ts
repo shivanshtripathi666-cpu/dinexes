@@ -2,6 +2,7 @@ import "server-only";
 import type { DocumentSnapshot } from "firebase-admin/firestore";
 import { accessOf, kindAllowed } from "@/lib/access";
 import { QR_KINDS, type QrKind } from "@/lib/config";
+import { openState } from "@/lib/hours";
 import type { Category, Dish, Member, Restaurant, Seat } from "@/lib/types";
 import { db } from "./firebaseAdmin";
 import { HttpError } from "./http";
@@ -28,7 +29,8 @@ export function toRestaurant(d: DocumentSnapshot): Restaurant {
     trialEndsAt: x.trialEndsAt || 0,
     subscription: { status: x.subscription?.status || "trialing", currentPeriodEnd: x.subscription?.currentPeriodEnd || null },
     planTier: x.planTier === "pro" || x.planTier === "premium" ? x.planTier : "",
-    settings: { voiceLang: x.settings?.voiceLang === "hi" ? "hi" : "en", acceptingOrders: x.settings?.acceptingOrders !== false },
+    settings: { voiceLang: x.settings?.voiceLang === "hi" ? "hi" : "en", acceptingOrders: x.settings?.acceptingOrders !== false, followHours: x.settings?.followHours === true },
+    closedDates: Array.isArray(x.closedDates) ? x.closedDates : [],
   };
 }
 
@@ -99,5 +101,7 @@ export function canTakeOrders(r: Restaurant, kind?: QrKind): { ok: boolean; reas
   if (!a.canOrder) return { ok: false, reason: "This restaurant is not taking online orders right now. Please order with the staff." };
   if (kind && !kindAllowed(a, kind)) return { ok: false, reason: "This QR code is not active right now. Please order at the counter." };
   if (!r.settings.acceptingOrders) return { ok: false, reason: "Ordering is paused right now. Please order with the staff." };
+  const o = openState({ hours: r.hours, followHours: r.settings.followHours, closedDates: r.closedDates });
+  if (!o.open) return { ok: false, reason: o.reason };
   return { ok: true, reason: "" };
 }

@@ -4,6 +4,7 @@ import { db } from "@/lib/server/firebaseAdmin";
 import { HttpError, handle, ok, readJson } from "@/lib/server/http";
 import { createRestaurant } from "@/lib/server/setup";
 import { bool, email, httpsUrl, oneOf, phone, str, time } from "@/lib/server/validate";
+import { todayKey } from "@/lib/hours";
 import type { Hours } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -52,6 +53,17 @@ export const PATCH = handle(async (req: Request) => {
   }
   if ("voiceLang" in b) patch["settings.voiceLang"] = oneOf(b.voiceLang, "Voice language", ["en", "hi"] as const);
   if ("acceptingOrders" in b) patch["settings.acceptingOrders"] = bool(b.acceptingOrders, "Accepting orders");
+  if ("followHours" in b) patch["settings.followHours"] = bool(b.followHours, "Opening hours rule");
+  if ("closedDates" in b) {
+    if (!Array.isArray(b.closedDates) || b.closedDates.length > 60) throw new HttpError(400, "Up to 60 closed dates can be saved.");
+    const today = todayKey();
+    const days = new Set<string>();
+    for (const v of b.closedDates) {
+      if (typeof v !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(v) || Number.isNaN(Date.parse(`${v}T00:00:00Z`))) throw new HttpError(400, "A closed date is not valid.");
+      if (v >= today) days.add(v); // past days are dropped
+    }
+    patch.closedDates = [...days].sort();
+  }
   if (!Object.keys(patch).length) throw new HttpError(400, "Nothing to update.");
   await db().doc(`restaurants/${m.rid}`).update(patch);
   return ok();

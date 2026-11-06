@@ -31,7 +31,9 @@ export interface Restaurant {
   subscription: { status: SubscriptionStatus; currentPeriodEnd: number | null };
   /** Plan bought last ("" before any payment; the free trial includes everything). */
   planTier: Tier | "";
-  settings: { voiceLang: "en" | "hi"; acceptingOrders: boolean };
+  settings: { voiceLang: "en" | "hi"; acceptingOrders: boolean; followHours: boolean };
+  /** Whole days off ("YYYY-MM-DD", India date). QR menus show when it opens next. */
+  closedDates: string[];
 }
 
 export interface Member {

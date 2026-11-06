@@ -1,10 +1,11 @@
 "use client";
 import { createUserWithEmailAndPassword, sendEmailVerification, updateProfile } from "firebase/auth";
-import { MailCheck } from "lucide-react";
+import { MailCheck, Smartphone } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { PasswordHint, PasswordInput, passwordProblem } from "@/components/password-input";
+import { PhoneLogin } from "@/components/phone-login";
 import { useSession } from "@/components/session";
 import { Alert, Button, Field, Input, Spinner } from "@/components/ui";
 import { api, errorText } from "@/lib/api";
@@ -35,6 +36,8 @@ function Register() {
   const { user, me, loading, refresh } = useSession();
   const [acct, setAcct] = useState({ ownerName: "", email: "", password: "" });
   const [rest, setRest] = useState({ name: "", phone: "", city: "" });
+  const [ownerName, setOwnerName] = useState("");
+  const [usePhone, setUsePhone] = useState(false);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
@@ -58,7 +61,9 @@ function Register() {
   }, [loading, me, router]);
 
   useEffect(() => {
-    setVerified(!!user?.emailVerified);
+    // Google and verified email count as verified; a mobile number signed in with OTP is verified too.
+    setVerified(!!user?.emailVerified || !!user?.phoneNumber);
+    if (user?.phoneNumber) setRest((r) => (r.phone ? r : { ...r, phone: user.phoneNumber!.replace(/^\+91/, "") }));
   }, [user]);
 
   const step: "account" | "verify" | "restaurant" = !user ? "account" : !verified ? "verify" : "restaurant";
@@ -134,7 +139,7 @@ function Register() {
       await fb().auth.currentUser?.getIdToken(true);
       await api("/api/restaurants", {
         method: "POST",
-        body: { ...rest, ownerName: user?.displayName || acct.ownerName || "Owner" },
+        body: { ...rest, ownerName: user?.displayName || acct.ownerName || ownerName.trim() || "Owner" },
       });
       await refresh();
       router.push("/onboarding");
@@ -155,7 +160,7 @@ function Register() {
   return (
     <div>
       <ol className="mb-6 flex gap-2 text-xs font-semibold" aria-label="Steps">
-        {["Account", "Verify email", "Restaurant"].map((s, i) => {
+        {["Account", "Verify", "Restaurant"].map((s, i) => {
           const idx = step === "account" ? 0 : step === "verify" ? 1 : 2;
           return (
             <li key={s} className={`flex-1 rounded-full py-1 text-center ${i <= idx ? "bg-navy text-ivory" : "bg-sand text-muted"}`}>
@@ -177,6 +182,15 @@ function Register() {
           <Button type="button" variant="outline" size="lg" className="mt-7 w-full bg-white" onClick={google} loading={busy === "google"} data-testid="google-signup">
             <GoogleMark /> Continue with Google
           </Button>
+          {usePhone ? (
+            <div className="mt-4 rounded-xl border border-line bg-white p-4">
+              <PhoneLogin cta="Verify and continue" onSignedIn={() => refresh()} />
+            </div>
+          ) : (
+            <Button type="button" variant="outline" size="lg" className="mt-3 w-full bg-white" onClick={() => setUsePhone(true)} data-testid="phone-signup">
+              <Smartphone className="size-4" /> Continue with mobile number (OTP)
+            </Button>
+          )}
           <Divider />
           <form onSubmit={createAccount} className="space-y-4" noValidate>
             <Field label="Your name" htmlFor="ownerName">
@@ -220,7 +234,12 @@ function Register() {
 
       {step === "restaurant" && (
         <form onSubmit={createRestaurant} className="mt-7 space-y-4" noValidate>
-          <Alert tone="ok">Signed in as {user?.email}. Now add your restaurant.</Alert>
+          <Alert tone="ok">Signed in as {user?.email || user?.phoneNumber}. Now add your restaurant.</Alert>
+          {!user?.displayName && !acct.ownerName && (
+            <Field label="Your name" htmlFor="ownerName2">
+              <Input id="ownerName2" autoComplete="name" required value={ownerName} onChange={(e) => setOwnerName(e.target.value)} placeholder="e.g. Shivansh" />
+            </Field>
+          )}
           <Field label="Restaurant name" htmlFor="name">
             <Input id="name" required value={rest.name} onChange={(e) => setRest({ ...rest, name: e.target.value })} placeholder="e.g. Royal Biryani House" />
           </Field>
