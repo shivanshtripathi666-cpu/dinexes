@@ -461,7 +461,7 @@ test("closed dates: the QR menu says when it opens again; owner can delete the a
   await p.getByTestId("delete-account").click();
   await p.getByTestId("delete-confirm").fill(C.restaurant);
   const [del] = await Promise.all([p.waitForResponse((r) => r.url().endsWith("/api/me") && r.request().method() === "DELETE"), p.getByTestId("delete-confirm-button").click()]);
-  expect(del.status(), await del.text()).toBe(200);
+  expect(del.status()).toBe(200);
   await expect.poll(() => p.url(), { timeout: 20_000 }).toContain("deleted=1");
   const signIn = await request.post(`${AUTH}/accounts:signInWithPassword?key=demo-key`, { data: { email: C.email, password: C.password, returnSecureToken: true } });
   expect(signIn.status()).toBe(400);
