@@ -437,6 +437,8 @@ test("closed dates: the QR menu says when it opens again; owner can delete the a
   const seats = await request.get(`${FS}/restaurants/${ridC}/seats`, { headers: { Authorization: "Bearer owner" } });
   const token = (await seats.json()).documents[0].fields.token.stringValue;
 
+  expect((await request.patch("/api/restaurants", { headers: auth, data: { onboarded: true } })).ok()).toBeTruthy();
+
   // Closed today: the menu still shows, ordering is off and guests see when it opens.
   await p.goto("/dashboard/settings");
   await p.getByTestId("add-closed-date").click();
