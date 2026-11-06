@@ -35,7 +35,7 @@ function phoneError(e: unknown): string {
  * Sign in or sign up with a mobile number and a 6-digit SMS code (OTP).
  * Calls onSignedIn after Firebase has signed the person in.
  */
-export function PhoneLogin({ onSignedIn, cta = "Continue" }: { onSignedIn: () => void | Promise<void>; cta?: string }) {
+export function PhoneLogin({ onSignedIn, cta = "Continue" }: { onSignedIn: () => unknown; cta?: string }) {
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [sent, setSent] = useState<ConfirmationResult | null>(null);
